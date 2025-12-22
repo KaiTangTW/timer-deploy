@@ -323,8 +323,11 @@ export default function Home() {
 
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-12 px-4 sm:px-6">
       
-      {/* Banner */}
-      <Banner />
+      {/* Banner 位置 A - 頁面頂部 */}
+      <div className="w-full max-w-4xl mb-4">
+        <p className="text-xs text-muted-foreground mb-2 text-center">【位置 A - 頁面頂部】</p>
+        <Banner />
+      </div>
       
       {/* Header */}
       <div className="w-full max-w-4xl mb-12 flex items-center justify-between gap-4">
@@ -393,6 +396,12 @@ export default function Home() {
             </div>
           )}
 
+          {/* Banner 位置 C - 計時器下方 */}
+          <div className="mt-4">
+            <p className="text-xs text-muted-foreground mb-2 text-center">【位置 C - 計時器下方】</p>
+            <Banner />
+          </div>
+
           {/* Keyboard shortcuts hint */}
           <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
@@ -407,6 +416,12 @@ export default function Home() {
 
         {/* Sidebar */}
         <div className="flex flex-col gap-6">
+          {/* Banner 位置 B - 右側欄 */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-2 text-center">【位置 B - 右側欄】</p>
+            <Banner />
+          </div>
+
           {/* Presets */}
           {!timerStyle.pomodoroMode && (
             <Card className="glass-panel rounded-3xl border-0">
