@@ -15,6 +15,64 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreateHistory } from "@/hooks/use-history";
 
 const POMODORO_WORK = 25 * 60;
+
+const TIPS = [
+  { title: "快捷鍵", content: "按空白鍵開始/暫停計時，按 R 鍵重置計時器。" },
+  { title: "番茄鐘模式", content: "開啟番茄鐘模式自動切換 25 分鐘專注與 5 分鐘休息。" },
+  { title: "自動重複", content: "開啟自動重複功能，計時結束後會自動重新開始。" },
+  { title: "自訂音效", content: "在設定中選擇喜歡的計時結束音效，或關閉音效。" },
+  { title: "預設儲存", content: "儲存常用的時間設定，下次快速選用。" },
+  { title: "統計追蹤", content: "查看今日專注時間和總計時統計資料。" },
+  { title: "深色模式", content: "點擊右上角切換深色/淺色主題，保護眼睛。" },
+];
+
+const POMODORO_TIPS = [
+  { title: "番茄鐘建議", content: "每完成 4 個番茄鐘後，建議休息 15-30 分鐘。" },
+  { title: "專注時段", content: "專注期間避免查看手機和社群媒體。" },
+  { title: "任務分解", content: "將大任務拆分成多個番茄鐘大小的小任務。" },
+  { title: "休息活動", content: "休息時可以起身走動、喝水或做簡單伸展。" },
+  { title: "記錄進度", content: "每完成一個番茄鐘，可以記錄完成的工作內容。" },
+];
+
+function TipsCarousel({ pomodoroMode }: { pomodoroMode: boolean }) {
+  const tips = pomodoroMode ? POMODORO_TIPS : TIPS;
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % tips.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [tips.length]);
+
+  const currentTip = tips[currentIndex];
+
+  return (
+    <div className="bg-primary/5 rounded-3xl p-6 border border-primary/10">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-semibold text-primary">小技巧</h3>
+        <div className="flex gap-1">
+          {tips.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                index === currentIndex ? "bg-primary" : "bg-primary/30"
+              }`}
+              data-testid={`tip-dot-${index}`}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="min-h-[60px]">
+        <p className="text-xs font-medium text-primary/80 mb-1">{currentTip.title}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {currentTip.content}
+        </p>
+      </div>
+    </div>
+  );
+}
 const POMODORO_BREAK = 5 * 60;
 
 export default function Home() {
@@ -354,15 +412,7 @@ export default function Home() {
             </Card>
           )}
           
-          <div className="bg-primary/5 rounded-3xl p-6 border border-primary/10">
-            <h3 className="font-semibold text-primary mb-2">小技巧</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {timerStyle.pomodoroMode 
-                ? "每完成 4 個番茄鐘後，建議休息 15-30 分鐘。"
-                : "使用番茄鐘工作法：專注 25 分鐘後休息 5 分鐘，可以有效提升工作效率。"
-              }
-            </p>
-          </div>
+          <TipsCarousel pomodoroMode={timerStyle.pomodoroMode} />
         </div>
       </div>
     </div>
