@@ -1,6 +1,7 @@
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Settings, Volume2, VolumeX } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 export interface TimerStyleSettings {
   fontFamily: string;
   color: string;
+  soundEnabled: boolean;
 }
 
 interface TimerSettingsProps {
@@ -55,7 +57,28 @@ export function TimerSettings({ settings, onChange }: TimerSettingsProps) {
       </PopoverTrigger>
       <PopoverContent className="w-72 rounded-2xl" align="center">
         <div className="space-y-4">
-          <h4 className="font-semibold text-sm">計時器樣式</h4>
+          <h4 className="font-semibold text-sm">計時器設定</h4>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {settings.soundEnabled ? (
+                <Volume2 className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-muted-foreground" />
+              )}
+              <Label htmlFor="sound-toggle" className="text-sm">到時提醒</Label>
+            </div>
+            <Switch
+              id="sound-toggle"
+              checked={settings.soundEnabled}
+              onCheckedChange={(checked) => onChange({ ...settings, soundEnabled: checked })}
+              data-testid="switch-sound"
+            />
+          </div>
+          
+          <div className="border-t pt-4">
+            <Label className="text-xs text-muted-foreground mb-2 block">字體樣式</Label>
+          </div>
           
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">字體</Label>

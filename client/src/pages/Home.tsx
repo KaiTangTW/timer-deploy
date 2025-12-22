@@ -19,7 +19,8 @@ export default function Home() {
   
   const [timerStyle, setTimerStyle] = useState<TimerStyleSettings>({
     fontFamily: "font-mono",
-    color: "text-foreground"
+    color: "text-foreground",
+    soundEnabled: true
   });
 
   // Initialize audio
@@ -90,7 +91,9 @@ export default function Home() {
             clearInterval(intervalRef.current!);
             setIsActive(false);
             setIsPaused(false);
-            audioRef.current?.play().catch(e => console.log("Audio play failed:", e));
+            if (timerStyle.soundEnabled) {
+              audioRef.current?.play().catch(e => console.log("Audio play failed:", e));
+            }
             toast({
               title: "時間到！",
               description: "倒數計時已完成。",
@@ -108,7 +111,7 @@ export default function Home() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isActive, isPaused, timeLeft, toast]);
+  }, [isActive, isPaused, timeLeft, toast, timerStyle.soundEnabled]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-12 px-4 sm:px-6">
