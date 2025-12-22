@@ -6,9 +6,11 @@ interface FullscreenTimerProps {
   timeLeft: number;
   isActive: boolean;
   onClose: () => void;
+  fontFamily?: string;
+  color?: string;
 }
 
-export function FullscreenTimer({ timeLeft, isActive, onClose }: FullscreenTimerProps) {
+export function FullscreenTimer({ timeLeft, isActive, onClose, fontFamily = "font-mono", color = "text-foreground" }: FullscreenTimerProps) {
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -40,7 +42,7 @@ export function FullscreenTimer({ timeLeft, isActive, onClose }: FullscreenTimer
           initial={{ scale: 0.98, opacity: 0.8 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="font-mono font-bold tracking-tight text-foreground select-none"
+          className={`${fontFamily} font-bold tracking-tight ${color} select-none`}
           style={{ fontSize: 'clamp(4rem, 20vw, 12rem)' }}
         >
           {formatTime(timeLeft)}

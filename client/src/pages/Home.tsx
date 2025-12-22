@@ -316,6 +316,8 @@ export default function Home() {
             timeLeft={timeLeft}
             isActive={isActive && !isPaused}
             onClose={() => setIsFullscreen(false)}
+            fontFamily={timerStyle.fontFamily}
+            color={timerStyle.color}
           />
         )}
       </AnimatePresence>
