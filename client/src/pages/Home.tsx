@@ -259,8 +259,8 @@ export default function Home() {
             <Timer className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">專注計時器</h1>
-            <p className="text-sm text-muted-foreground">倒數計時工具</p>
+            <h1 className="text-2xl font-bold tracking-tight">時間效率神器</h1>
+            <p className="text-sm text-muted-foreground">凱爺小工具</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
