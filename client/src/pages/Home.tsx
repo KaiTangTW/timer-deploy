@@ -6,9 +6,11 @@ import { DurationInput } from "@/components/DurationInput";
 import { TimerSettings, type TimerStyleSettings, getSoundUrl } from "@/components/TimerSettings";
 import { TimerStats } from "@/components/TimerStats";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Banner } from "@/components/Banner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Timer, Keyboard } from "lucide-react";
+import { Timer, Keyboard, Settings } from "lucide-react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateHistory } from "@/hooks/use-history";
 
@@ -247,6 +249,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-12 px-4 sm:px-6">
       
+      {/* Banner */}
+      <Banner />
+      
       {/* Header */}
       <div className="w-full max-w-4xl mb-12 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -265,6 +270,11 @@ export default function Home() {
             </Badge>
           )}
           <ThemeToggle />
+          <Link href="/admin">
+            <a className="p-2 rounded-full hover:bg-muted transition-colors" title="後台設定" data-testid="link-admin">
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </a>
+          </Link>
         </div>
       </div>
 

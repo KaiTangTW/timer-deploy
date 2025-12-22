@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertPresetSchema, insertTimerHistorySchema, presets, timerHistory } from './schema';
+import { insertPresetSchema, insertTimerHistorySchema, insertBannerSchema, presets, timerHistory, bannerSettings } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -67,6 +67,24 @@ export const api = {
           sessionCount: z.number(),
           todayTime: z.number(),
         }),
+      },
+    },
+  },
+  banner: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/banner',
+      responses: {
+        200: z.custom<typeof bannerSettings.$inferSelect>().nullable(),
+      },
+    },
+    update: {
+      method: 'POST' as const,
+      path: '/api/banner',
+      input: insertBannerSchema,
+      responses: {
+        200: z.custom<typeof bannerSettings.$inferSelect>(),
+        400: errorSchemas.validation,
       },
     },
   },

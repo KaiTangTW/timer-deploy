@@ -22,3 +22,14 @@ export type Preset = typeof presets.$inferSelect;
 export type InsertPreset = z.infer<typeof insertPresetSchema>;
 export type TimerHistory = typeof timerHistory.$inferSelect;
 export type InsertTimerHistory = z.infer<typeof insertTimerHistorySchema>;
+
+export const bannerSettings = pgTable("banner_settings", {
+  id: serial("id").primaryKey(),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url").notNull(),
+  isActive: integer("is_active").notNull().default(1),
+});
+
+export const insertBannerSchema = createInsertSchema(bannerSettings).omit({ id: true });
+export type BannerSettings = typeof bannerSettings.$inferSelect;
+export type InsertBanner = z.infer<typeof insertBannerSchema>;

@@ -62,6 +62,28 @@ export async function registerRoutes(
     res.json(stats);
   });
 
+  // Banner Routes
+  app.get(api.banner.get.path, async (req, res) => {
+    const banner = await storage.getBanner();
+    res.json(banner);
+  });
+
+  app.post(api.banner.update.path, async (req, res) => {
+    try {
+      const input = api.banner.update.input.parse(req.body);
+      const banner = await storage.updateBanner(input);
+      res.json(banner);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
   // Seed default presets if empty
   const existing = await storage.getPresets();
   if (existing.length === 0) {
