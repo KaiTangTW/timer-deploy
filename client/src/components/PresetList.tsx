@@ -23,9 +23,16 @@ export function PresetList({ onSelect }: PresetListProps) {
   const deletePreset = useDeletePreset();
 
   const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${m}m ${s > 0 ? `${s}s` : ''}`;
+    
+    const parts = [];
+    if (h > 0) parts.push(`${h}時`);
+    if (m > 0) parts.push(`${m}分`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}秒`);
+    
+    return parts.join(' ');
   };
 
   if (isLoading) {

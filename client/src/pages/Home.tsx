@@ -61,9 +61,17 @@ export default function Home() {
     setIsPaused(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
     
+    const h = Math.floor(duration / 3600);
+    const m = Math.floor((duration % 3600) / 60);
+    const s = duration % 60;
+    const parts = [];
+    if (h > 0) parts.push(`${h} 時`);
+    if (m > 0) parts.push(`${m} 分`);
+    if (s > 0 || parts.length === 0) parts.push(`${s} 秒`);
+    
     toast({
       title: "已載入預設",
-      description: `計時器設定為 ${Math.floor(duration / 60)} 分 ${duration % 60} 秒`,
+      description: `計時器設定為 ${parts.join(' ')}`,
     });
   };
 

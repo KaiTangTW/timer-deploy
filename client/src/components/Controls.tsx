@@ -114,7 +114,7 @@ export function Controls({
                 />
               </div>
               <div className="text-sm text-muted-foreground">
-                目前時長：{Math.floor(totalDuration / 60)} 分 {totalDuration % 60} 秒
+                目前時長：{Math.floor(totalDuration / 3600) > 0 ? `${Math.floor(totalDuration / 3600)} 時 ` : ''}{Math.floor((totalDuration % 3600) / 60)} 分 {totalDuration % 60} 秒
               </div>
             </div>
             <DialogFooter className="sm:justify-end gap-2">

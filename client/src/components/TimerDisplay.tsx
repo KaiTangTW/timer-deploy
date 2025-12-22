@@ -12,23 +12,13 @@ export function TimerDisplay({ totalDuration, timeLeft, isActive }: TimerDisplay
   // Calculate progress (100 to 0)
   const percentage = totalDuration > 0 ? (timeLeft / totalDuration) * 100 : 0;
 
-  // Format time as HH:MM:SS
+  // Format time as HH:MM:SS (always show all three units)
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     
-    // Always show at least MM:SS
-    const parts = [
-      h > 0 ? h.toString().padStart(2, '0') : null,
-      m.toString().padStart(2, '0'),
-      s.toString().padStart(2, '0')
-    ].filter(Boolean);
-    
-    // If less than a minute, showing 00:XX is cleaner
-    if (parts.length === 1) return `00:${parts[0]}`;
-    
-    return parts.join(':');
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -60,9 +50,7 @@ export function TimerDisplay({ totalDuration, timeLeft, isActive }: TimerDisplay
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0.8, y: -5 }}
               transition={{ duration: 0.2 }}
-              className={`font-mono font-bold tracking-tighter text-foreground timer-shadow ${
-                formatTime(timeLeft).length > 5 ? 'text-5xl sm:text-7xl' : 'text-7xl sm:text-9xl'
-              }`}
+              className="font-mono font-bold tracking-tighter text-foreground timer-shadow text-4xl sm:text-6xl"
             >
               {formatTime(timeLeft)}
             </motion.div>
