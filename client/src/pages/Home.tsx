@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { AnimatePresence } from "framer-motion";
 import { TimerDisplay } from "@/components/TimerDisplay";
 import { Controls } from "@/components/Controls";
 import { PresetList } from "@/components/PresetList";
@@ -7,6 +8,7 @@ import { TimerSettings, type TimerStyleSettings, getSoundUrl } from "@/component
 import { TimerStats } from "@/components/TimerStats";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Banner } from "@/components/Banner";
+import { FullscreenTimer, FullscreenButton } from "@/components/FullscreenTimer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Timer, Keyboard, Settings } from "lucide-react";
@@ -80,6 +82,7 @@ export default function Home() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [pomodoroPhase, setPomodoroPhase] = useState<"work" | "break">("work");
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -305,6 +308,18 @@ export default function Home() {
   }, [isActive, isPaused, timeLeft, toast, timerStyle.soundEnabled, timerStyle.autoRepeat, timerStyle.pomodoroMode, totalDuration, pomodoroPhase, createHistory]);
 
   return (
+    <>
+      {/* Fullscreen Timer Overlay */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <FullscreenTimer
+            timeLeft={timeLeft}
+            isActive={isActive && !isPaused}
+            onClose={() => setIsFullscreen(false)}
+          />
+        )}
+      </AnimatePresence>
+
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-12 px-4 sm:px-6">
       
       {/* Banner */}
@@ -358,6 +373,13 @@ export default function Home() {
                 timerStyle={timerStyle}
                 onStyleChange={setTimerStyle}
               />
+              
+              {/* Fullscreen button - show when timer is active on mobile */}
+              {isActive && (
+                <div className="flex justify-center mt-4 md:hidden">
+                  <FullscreenButton onClick={() => setIsFullscreen(true)} />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -416,5 +438,6 @@ export default function Home() {
         </div>
       </div>
     </div>
+    </>
   );
 }
