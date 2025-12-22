@@ -230,7 +230,7 @@ export default function Admin() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                建議尺寸：1200 x 200 像素（或類似的橫幅比例）
+                最佳尺寸：1200 x 300 像素（寬高比 4:1），檔案大小建議 500KB 以內
               </p>
             </div>
 
