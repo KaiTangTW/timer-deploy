@@ -38,10 +38,10 @@ export async function registerRoutes(
   // Seed default presets if empty
   const existing = await storage.getPresets();
   if (existing.length === 0) {
-    await storage.createPreset({ name: "Pomodoro", duration: 25 * 60 });
-    await storage.createPreset({ name: "Short Break", duration: 5 * 60 });
-    await storage.createPreset({ name: "Soft Boiled Egg", duration: 6 * 60 });
-    await storage.createPreset({ name: "Plank", duration: 60 });
+    await storage.createPreset({ name: "番茄鐘", duration: 25 * 60 });
+    await storage.createPreset({ name: "短休息", duration: 5 * 60 });
+    await storage.createPreset({ name: "煮溏心蛋", duration: 6 * 60 });
+    await storage.createPreset({ name: "棒式", duration: 60 });
   }
 
   return httpServer;

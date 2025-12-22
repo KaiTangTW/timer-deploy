@@ -62,8 +62,8 @@ export default function Home() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     
     toast({
-      title: "Preset Loaded",
-      description: `Timer set for ${Math.floor(duration / 60)}m ${duration % 60}s`,
+      title: "已載入預設",
+      description: `計時器設定為 ${Math.floor(duration / 60)} 分 ${duration % 60} 秒`,
     });
   };
 
@@ -79,8 +79,8 @@ export default function Home() {
             setIsPaused(false);
             audioRef.current?.play().catch(e => console.log("Audio play failed:", e));
             toast({
-              title: "Time's up!",
-              description: "Your countdown has finished.",
+              title: "時間到！",
+              description: "倒數計時已完成。",
               duration: 5000,
             });
             return 0;
@@ -107,8 +107,8 @@ export default function Home() {
             <Timer className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">FocusTimer</h1>
-            <p className="text-sm text-muted-foreground">Productivity Countdown</p>
+            <h1 className="text-2xl font-bold tracking-tight">專注計時器</h1>
+            <p className="text-sm text-muted-foreground">倒數計時工具</p>
           </div>
         </div>
       </div>
@@ -148,8 +148,8 @@ export default function Home() {
         <div className="flex flex-col gap-6">
           <Card className="glass-panel rounded-3xl border-0 h-full">
             <CardHeader>
-              <CardTitle className="text-xl">Saved Presets</CardTitle>
-              <CardDescription>Quick access to your timers</CardDescription>
+              <CardTitle className="text-xl">已儲存的預設</CardTitle>
+              <CardDescription>快速存取您的計時器</CardDescription>
             </CardHeader>
             <CardContent>
               <PresetList onSelect={handlePresetSelect} />
@@ -157,9 +157,9 @@ export default function Home() {
           </Card>
           
           <div className="bg-primary/5 rounded-3xl p-6 border border-primary/10">
-            <h3 className="font-semibold text-primary mb-2">Pro Tip</h3>
+            <h3 className="font-semibold text-primary mb-2">小技巧</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Use the Pomodoro technique: 25 minutes of focus followed by a 5-minute break to maximize your productivity.
+              使用番茄鐘工作法：專注 25 分鐘後休息 5 分鐘，可以有效提升工作效率。
             </p>
           </div>
         </div>

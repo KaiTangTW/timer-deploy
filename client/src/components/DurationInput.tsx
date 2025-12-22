@@ -28,7 +28,7 @@ export function DurationInput({ onChange, isActive }: DurationInputProps) {
   return (
     <div className={`grid grid-cols-3 gap-4 w-full max-w-sm mx-auto transition-opacity duration-300 ${isActive ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
       <div className="space-y-2">
-        <Label htmlFor="hours" className="text-xs uppercase tracking-wider text-muted-foreground text-center block">Hours</Label>
+        <Label htmlFor="hours" className="text-xs uppercase tracking-wider text-muted-foreground text-center block">小時</Label>
         <Input
           id="hours"
           type="number"
@@ -41,7 +41,7 @@ export function DurationInput({ onChange, isActive }: DurationInputProps) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="minutes" className="text-xs uppercase tracking-wider text-muted-foreground text-center block">Minutes</Label>
+        <Label htmlFor="minutes" className="text-xs uppercase tracking-wider text-muted-foreground text-center block">分鐘</Label>
         <Input
           id="minutes"
           type="number"
@@ -54,7 +54,7 @@ export function DurationInput({ onChange, isActive }: DurationInputProps) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="seconds" className="text-xs uppercase tracking-wider text-muted-foreground text-center block">Seconds</Label>
+        <Label htmlFor="seconds" className="text-xs uppercase tracking-wider text-muted-foreground text-center block">秒</Label>
         <Input
           id="seconds"
           type="number"

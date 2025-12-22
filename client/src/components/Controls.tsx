@@ -81,7 +81,7 @@ export function Controls({
           size="icon"
           className="rounded-full w-12 h-12 border-2 hover:bg-muted/50"
           onClick={onReset}
-          title="Reset Timer"
+          title="重設計時器"
         >
           <RotateCcw className="w-5 h-5" />
         </Button>
@@ -93,34 +93,34 @@ export function Controls({
               size="icon"
               className="rounded-full w-12 h-12 border-2 hover:bg-muted/50"
               disabled={totalDuration === 0}
-              title="Save as Preset"
+              title="儲存為預設"
             >
               <Save className="w-5 h-5" />
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Save Timer Preset</DialogTitle>
+              <DialogTitle>儲存計時器預設</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Preset Name</Label>
+                <Label htmlFor="name">預設名稱</Label>
                 <Input
                   id="name"
-                  placeholder="e.g., Pomodoro Focus"
+                  placeholder="例如：番茄專注時間"
                   value={presetName}
                   onChange={(e) => setPresetName(e.target.value)}
                   className="rounded-xl border-2 focus:ring-offset-0 focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div className="text-sm text-muted-foreground">
-                Saving current duration: {Math.floor(totalDuration / 60)}m {totalDuration % 60}s
+                目前時長：{Math.floor(totalDuration / 60)} 分 {totalDuration % 60} 秒
               </div>
             </div>
             <DialogFooter className="sm:justify-end gap-2">
               <DialogClose asChild>
                 <Button type="button" variant="secondary" className="rounded-xl">
-                  Cancel
+                  取消
                 </Button>
               </DialogClose>
               <Button 
@@ -129,7 +129,7 @@ export function Controls({
                 disabled={!presetName.trim() || createPreset.isPending}
                 className="rounded-xl px-6"
               >
-                {createPreset.isPending ? "Saving..." : "Save Preset"}
+                {createPreset.isPending ? "儲存中..." : "儲存預設"}
               </Button>
             </DialogFooter>
           </DialogContent>

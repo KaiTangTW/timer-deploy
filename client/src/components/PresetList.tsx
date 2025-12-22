@@ -42,8 +42,8 @@ export function PresetList({ onSelect }: PresetListProps) {
     return (
       <div className="text-center py-10 px-6 border-2 border-dashed border-muted rounded-2xl bg-muted/10">
         <Clock className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-        <h3 className="text-lg font-medium text-muted-foreground">No presets yet</h3>
-        <p className="text-sm text-muted-foreground/80 mt-1">Set a timer and click the save icon to create one.</p>
+        <h3 className="text-lg font-medium text-muted-foreground">尚無預設</h3>
+        <p className="text-sm text-muted-foreground/80 mt-1">設定計時器後點擊儲存圖示即可建立預設。</p>
       </div>
     );
   }
@@ -82,18 +82,18 @@ export function PresetList({ onSelect }: PresetListProps) {
                 </AlertDialogTrigger>
                 <AlertDialogContent className="rounded-2xl">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Preset</AlertDialogTitle>
+                    <AlertDialogTitle>刪除預設</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to delete "{preset.name}"? This action cannot be undone.
+                      確定要刪除「{preset.name}」嗎？此操作無法復原。
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                    <AlertDialogCancel className="rounded-xl">取消</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deletePreset.mutate(preset.id)}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
                     >
-                      Delete
+                      刪除
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

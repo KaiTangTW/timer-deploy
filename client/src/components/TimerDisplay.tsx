@@ -73,7 +73,7 @@ export function TimerDisplay({ totalDuration, timeLeft, isActive }: TimerDisplay
             animate={{ opacity: 1 }}
             className="mt-2 text-sm sm:text-base font-medium text-muted-foreground uppercase tracking-widest"
           >
-            {isActive ? 'Running' : timeLeft === 0 ? 'Completed' : 'Paused'}
+            {isActive ? '計時中' : timeLeft === 0 ? '已完成' : '已暫停'}
           </motion.div>
         </div>
       </CircularProgressbarWithChildren>
