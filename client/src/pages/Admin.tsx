@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useBanner, useUpdateBanner } from "@/hooks/use-banner";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Save, Image, Link } from "lucide-react";
+import { ArrowLeft, Save, Image, Link, LogIn, LogOut, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Link as RouterLink } from "wouter";
+import { isUnauthorizedError } from "@/lib/auth-utils";
 
 export default function Admin() {
+  const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
   const { data: banner, isLoading } = useBanner();
   const updateBanner = useUpdateBanner();
   const { toast } = useToast();
@@ -47,19 +49,85 @@ export default function Admin() {
           description: "Banner 設定已更新",
         });
       },
+      onError: (error) => {
+        if (isUnauthorizedError(error)) {
+          toast({
+            title: "未授權",
+            description: "請先登入...",
+            variant: "destructive",
+          });
+          setTimeout(() => {
+            window.location.href = "/api/login";
+          }, 500);
+          return;
+        }
+        toast({
+          title: "儲存失敗",
+          description: "您沒有管理員權限",
+          variant: "destructive",
+        });
+      },
     });
   };
+
+  // Show loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background text-foreground p-6">
+        <div className="max-w-md mx-auto mt-20">
+          <Card className="rounded-3xl">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">管理員登入</CardTitle>
+              <CardDescription>請登入以管理 Banner 廣告設定</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => window.location.href = "/api/login"}
+                className="w-full rounded-xl gap-2"
+                data-testid="button-login"
+              >
+                <LogIn className="w-4 h-4" />
+                登入
+              </Button>
+              <a href="/">
+                <Button variant="ghost" className="w-full gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  返回計時器
+                </Button>
+              </a>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <RouterLink href="/">
+        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <a href="/">
             <Button variant="ghost" className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               返回計時器
             </Button>
-          </RouterLink>
+          </a>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">{user?.email}</span>
+            <Button variant="outline" size="sm" onClick={() => logout()} className="gap-2" data-testid="button-logout">
+              <LogOut className="w-4 h-4" />
+              登出
+            </Button>
+          </div>
         </div>
 
         <Card className="rounded-3xl">

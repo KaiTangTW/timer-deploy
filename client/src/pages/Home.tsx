@@ -270,10 +270,8 @@ export default function Home() {
             </Badge>
           )}
           <ThemeToggle />
-          <Link href="/admin">
-            <a className="p-2 rounded-full hover:bg-muted transition-colors" title="後台設定" data-testid="link-admin">
-              <Settings className="w-5 h-5 text-muted-foreground" />
-            </a>
+          <Link href="/admin" className="p-2 rounded-full hover:bg-muted transition-colors" title="後台設定" data-testid="link-admin">
+            <Settings className="w-5 h-5 text-muted-foreground" />
           </Link>
         </div>
       </div>

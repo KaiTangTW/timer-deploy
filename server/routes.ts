@@ -1,13 +1,30 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+
+// Admin email whitelist
+const ADMIN_EMAILS = ["kai@2him.net"];
+
+// Middleware to check if user is admin
+const isAdmin: RequestHandler = (req, res, next) => {
+  const user = req.user as any;
+  if (!user?.claims?.email || !ADMIN_EMAILS.includes(user.claims.email)) {
+    return res.status(403).json({ message: "Forbidden - Admin access required" });
+  }
+  next();
+};
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // Setup authentication
+  await setupAuth(app);
+  registerAuthRoutes(app);
 
   app.get(api.presets.list.path, async (req, res) => {
     const presets = await storage.getPresets();
@@ -68,7 +85,7 @@ export async function registerRoutes(
     res.json(banner);
   });
 
-  app.post(api.banner.update.path, async (req, res) => {
+  app.post(api.banner.update.path, isAuthenticated, isAdmin, async (req, res) => {
     try {
       const input = api.banner.update.input.parse(req.body);
       const banner = await storage.updateBanner(input);
