@@ -396,7 +396,7 @@ export default function Home() {
           {!timerStyle.pomodoroMode && (
             <Card className="glass-panel rounded-3xl border-0">
               <CardHeader>
-                <CardTitle className="text-xl">已儲存的預設</CardTitle>
+                <CardTitle className="text-xl">您的預設時鐘</CardTitle>
                 <CardDescription>快速存取您的計時器</CardDescription>
               </CardHeader>
               <CardContent>
