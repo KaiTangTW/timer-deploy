@@ -105,6 +105,32 @@ export async function registerRoutes(
     }
   });
 
+  // Analytics Routes
+  app.post(api.analytics.track.path, async (req, res) => {
+    try {
+      const input = api.analytics.track.input.parse(req.body);
+      await storage.recordPageView(input);
+      res.status(201).json({ success: true });
+    } catch (err) {
+      res.status(201).json({ success: true }); // Fail silently for analytics
+    }
+  });
+
+  app.post(api.analytics.timerUsage.path, async (req, res) => {
+    try {
+      const input = api.analytics.timerUsage.input.parse(req.body);
+      await storage.recordTimerUsage(input);
+      res.status(201).json({ success: true });
+    } catch (err) {
+      res.status(201).json({ success: true }); // Fail silently for analytics
+    }
+  });
+
+  app.get(api.analytics.stats.path, isAuthenticated, isAdmin, async (req, res) => {
+    const stats = await storage.getAnalytics();
+    res.json(stats);
+  });
+
   // Seed default presets if empty
   const existing = await storage.getPresets();
   if (existing.length === 0) {

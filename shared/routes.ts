@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertPresetSchema, insertTimerHistorySchema, insertBannerSchema, presets, timerHistory, bannerSettings } from './schema';
+import { insertPresetSchema, insertTimerHistorySchema, insertBannerSchema, insertPageViewSchema, insertTimerUsageSchema, presets, timerHistory, bannerSettings } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -85,6 +85,38 @@ export const api = {
       responses: {
         200: z.custom<typeof bannerSettings.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+  },
+  analytics: {
+    track: {
+      method: 'POST' as const,
+      path: '/api/analytics/track',
+      input: insertPageViewSchema,
+      responses: {
+        201: z.object({ success: z.boolean() }),
+      },
+    },
+    timerUsage: {
+      method: 'POST' as const,
+      path: '/api/analytics/timer',
+      input: insertTimerUsageSchema,
+      responses: {
+        201: z.object({ success: z.boolean() }),
+      },
+    },
+    stats: {
+      method: 'GET' as const,
+      path: '/api/analytics/stats',
+      responses: {
+        200: z.object({
+          totalPageViews: z.number(),
+          todayPageViews: z.number(),
+          uniqueVisitors: z.number(),
+          todayVisitors: z.number(),
+          totalTimerUsage: z.number(),
+          todayTimerUsage: z.number(),
+        }),
       },
     },
   },

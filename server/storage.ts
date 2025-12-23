@@ -1,6 +1,6 @@
-import { presets, timerHistory, bannerSettings, type Preset, type InsertPreset, type TimerHistory, type InsertTimerHistory, type BannerSettings, type InsertBanner } from "@shared/schema";
+import { presets, timerHistory, bannerSettings, pageViews, timerUsage, type Preset, type InsertPreset, type TimerHistory, type InsertTimerHistory, type BannerSettings, type InsertBanner, type PageView, type InsertPageView, type TimerUsage, type InsertTimerUsage } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql, gte } from "drizzle-orm";
 
 export interface IStorage {
   getPresets(): Promise<Preset[]>;
@@ -67,6 +67,46 @@ export class DatabaseStorage implements IStorage {
       const [created] = await db.insert(bannerSettings).values(insertBanner).returning();
       return created;
     }
+  }
+
+  async recordPageView(view: InsertPageView): Promise<PageView> {
+    const [created] = await db.insert(pageViews).values(view).returning();
+    return created;
+  }
+
+  async recordTimerUsage(usage: InsertTimerUsage): Promise<TimerUsage> {
+    const [created] = await db.insert(timerUsage).values(usage).returning();
+    return created;
+  }
+
+  async getAnalytics(): Promise<{
+    totalPageViews: number;
+    todayPageViews: number;
+    uniqueVisitors: number;
+    todayVisitors: number;
+    totalTimerUsage: number;
+    todayTimerUsage: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const allPageViews = await db.select().from(pageViews);
+    const todayViews = allPageViews.filter(v => new Date(v.visitedAt) >= today);
+    
+    const uniqueVisitorIds = new Set(allPageViews.map(v => v.visitorId));
+    const todayVisitorIds = new Set(todayViews.map(v => v.visitorId));
+
+    const allUsage = await db.select().from(timerUsage);
+    const todayUsage = allUsage.filter(u => new Date(u.usedAt) >= today);
+
+    return {
+      totalPageViews: allPageViews.length,
+      todayPageViews: todayViews.length,
+      uniqueVisitors: uniqueVisitorIds.size,
+      todayVisitors: todayVisitorIds.size,
+      totalTimerUsage: allUsage.length,
+      todayTimerUsage: todayUsage.length,
+    };
   }
 }
 

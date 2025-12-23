@@ -35,3 +35,26 @@ export const bannerSettings = pgTable("banner_settings", {
 export const insertBannerSchema = createInsertSchema(bannerSettings).omit({ id: true });
 export type BannerSettings = typeof bannerSettings.$inferSelect;
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
+
+export const pageViews = pgTable("page_views", {
+  id: serial("id").primaryKey(),
+  visitorId: text("visitor_id").notNull(),
+  path: text("path").notNull().default("/"),
+  visitedAt: timestamp("visited_at").defaultNow().notNull(),
+});
+
+export const timerUsage = pgTable("timer_usage", {
+  id: serial("id").primaryKey(),
+  visitorId: text("visitor_id").notNull(),
+  duration: integer("duration").notNull(),
+  type: text("type").notNull().default("timer"),
+  usedAt: timestamp("used_at").defaultNow().notNull(),
+});
+
+export const insertPageViewSchema = createInsertSchema(pageViews).omit({ id: true, visitedAt: true });
+export const insertTimerUsageSchema = createInsertSchema(timerUsage).omit({ id: true, usedAt: true });
+
+export type PageView = typeof pageViews.$inferSelect;
+export type InsertPageView = z.infer<typeof insertPageViewSchema>;
+export type TimerUsage = typeof timerUsage.$inferSelect;
+export type InsertTimerUsage = z.infer<typeof insertTimerUsageSchema>;
