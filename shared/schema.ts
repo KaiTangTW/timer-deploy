@@ -58,3 +58,44 @@ export type PageView = typeof pageViews.$inferSelect;
 export type InsertPageView = z.infer<typeof insertPageViewSchema>;
 export type TimerUsage = typeof timerUsage.$inferSelect;
 export type InsertTimerUsage = z.infer<typeof insertTimerUsageSchema>;
+
+// ========== 機器人相關 ==========
+
+export const botFaqs = pgTable("bot_faqs", {
+  id: text("id").primaryKey(),
+  keywords: text("keywords").notNull(),
+  answer: text("answer").notNull(),
+  category: text("category").default(""),
+  priority: integer("priority").default(0),
+  enabled: integer("enabled").default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const botSettings = pgTable("bot_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const botMessageLogs = pgTable("bot_message_logs", {
+  id: serial("id").primaryKey(),
+  platform: text("platform").notNull(),
+  type: text("type").notNull(),
+  senderId: text("sender_id").default(""),
+  message: text("message").default(""),
+  reply: text("reply").default(""),
+  replySource: text("reply_source").default(""),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const botBlocklist = pgTable("bot_blocklist", {
+  senderId: text("sender_id").primaryKey(),
+  reason: text("reason").default(""),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type BotFaq = typeof botFaqs.$inferSelect;
+export type BotSetting = typeof botSettings.$inferSelect;
+export type BotMessageLog = typeof botMessageLogs.$inferSelect;
+export type BotBlockEntry = typeof botBlocklist.$inferSelect;

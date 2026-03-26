@@ -46,7 +46,7 @@ app.listen(config.port, () => {
   console.log(`║  ${config.brandName} 自動回覆機器人已啟動！`);
   console.log(`║  🌐 http://localhost:${config.port}`);
   console.log(`║  📡 Webhook: http://localhost:${config.port}/webhook`);
-  console.log(`║  🔧 管理 API: http://localhost:${config.port}/api/faq`);
+  console.log(`║  🎛️  管理後台: http://localhost:${config.port}/admin`);
   console.log(`║  🧪 測試: POST http://localhost:${config.port}/api/test-reply`);
   console.log("╚══════════════════════════════════════════╝");
 

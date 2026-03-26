@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { botRouter, initBot } from "./bot/routes";
 
 // Admin email whitelist
 const ADMIN_EMAILS = ["kai@2him.net"];
@@ -29,6 +30,10 @@ export async function registerRoutes(
   
   // Setup object storage routes
   registerObjectStorageRoutes(app);
+
+  // 機器人路由（Webhook + 管理後台）
+  app.use(botRouter);
+  await initBot();
 
   app.get(api.presets.list.path, async (req, res) => {
     const presets = await storage.getPresets();
