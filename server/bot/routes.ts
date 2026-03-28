@@ -130,13 +130,14 @@ botRouter.get("/api/bot/faq", isBotAdmin, async (_req: Request, res: Response) =
 });
 
 botRouter.post("/api/bot/faq", isBotAdmin, async (req: Request, res: Response) => {
-  const { keywords, answer, category, priority } = req.body;
+  const { keywords, answer, category, priority, attachments } = req.body;
   if (!keywords || !answer) {
     res.status(400).json({ success: false, error: "keywords 和 answer 為必填" });
     return;
   }
   const kw = Array.isArray(keywords) ? keywords.join(",") : keywords;
-  const entry = await faqOps.add({ keywords: kw, answer, category, priority: priority ?? 0 });
+  const attStr = attachments ? JSON.stringify(attachments) : "[]";
+  const entry = await faqOps.add({ keywords: kw, answer, category, priority: priority ?? 0, attachments: attStr });
   res.json({ success: true, data: entry });
 });
 
@@ -144,6 +145,9 @@ botRouter.put("/api/bot/faq/:id", isBotAdmin, async (req: Request, res: Response
   const updates = req.body;
   if (updates.keywords && Array.isArray(updates.keywords)) {
     updates.keywords = updates.keywords.join(",");
+  }
+  if (updates.attachments && typeof updates.attachments !== "string") {
+    updates.attachments = JSON.stringify(updates.attachments);
   }
   const updated = await faqOps.update(req.params.id, updates);
   if (!updated) {
@@ -167,15 +171,17 @@ botRouter.post("/api/bot/test-reply", isBotAdmin, async (req: Request, res: Resp
   }
   const faqMatch = await faqOps.match(message);
   if (faqMatch) {
-    res.json({ success: true, source: "faq", faqId: faqMatch.id, reply: faqMatch.answer });
+    let attachments: any[] = [];
+    try { attachments = JSON.parse(faqMatch.attachments || "[]"); } catch {}
+    res.json({ success: true, source: "faq", faqId: faqMatch.id, reply: faqMatch.answer, attachments });
     return;
   }
   if (!(await settingsOps.isEnabled("ai_enabled"))) {
-    res.json({ success: true, source: "default", reply: "感謝您的訊息！我們的團隊會盡快回覆您 😊" });
+    res.json({ success: true, source: "default", reply: "感謝您的訊息！我們的團隊會盡快回覆您 😊", attachments: [] });
     return;
   }
   const aiReply = await generateAIReply(message, { isComment: !!isComment });
-  res.json({ success: true, source: "ai", reply: aiReply });
+  res.json({ success: true, source: "ai", reply: aiReply, attachments: [] });
 });
 
 // 日誌
@@ -262,7 +268,6 @@ export const ADMIN_HTML = `<!DOCTYPE html>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, "Noto Sans TC", sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
 
-/* 登入頁 */
 .login-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 .login-box { text-align: center; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 40px; max-width: 400px; }
 .login-box h1 { font-size: 24px; margin-bottom: 8px; }
@@ -270,11 +275,9 @@ body { font-family: -apple-system, "Noto Sans TC", sans-serif; background: #0f17
 .login-btn { display: inline-block; padding: 12px 32px; background: #3b82f6; color: white; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; }
 .login-btn:hover { background: #2563eb; }
 .denied { color: #f87171; }
-
 .app { display: none; }
 
-/* 側邊欄 */
-.sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: #1e293b; border-right: 1px solid #334155; padding: 20px 0; z-index: 10; }
+.sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: #1e293b; border-right: 1px solid #334155; padding: 20px 0; z-index: 10; overflow-y: auto; }
 .sidebar-header { padding: 0 20px 16px; border-bottom: 1px solid #334155; }
 .sidebar-header h1 { font-size: 18px; color: #f8fafc; }
 .sidebar-header .user-info { font-size: 12px; color: #64748b; margin-top: 4px; }
@@ -282,10 +285,12 @@ body { font-family: -apple-system, "Noto Sans TC", sans-serif; background: #0f17
 .sidebar a { display: block; padding: 12px 20px; color: #94a3b8; text-decoration: none; font-size: 14px; transition: all 0.2s; cursor: pointer; }
 .sidebar a:hover, .sidebar a.active { background: #334155; color: #f8fafc; }
 .sidebar .logout { position: absolute; bottom: 20px; left: 0; right: 0; padding: 12px 20px; color: #f87171; font-size: 13px; }
-
 .main { margin-left: 220px; padding: 30px; }
 
-/* 統計卡片 */
+/* Info box — 功能說明 */
+.info-box { background: #1e3a5f; border: 1px solid #2563eb40; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: #93c5fd; line-height: 1.6; }
+.info-box strong { color: #bfdbfe; }
+
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 30px; }
 .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
 .stat-card .label { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
@@ -296,11 +301,10 @@ body { font-family: -apple-system, "Noto Sans TC", sans-serif; background: #0f17
 .section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
 .section h2 { font-size: 18px; margin-bottom: 16px; color: #f8fafc; }
 
-/* 開關 */
 .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #334155; }
 .toggle-row:last-child { border-bottom: none; }
 .toggle-row .desc { font-size: 12px; color: #64748b; margin-top: 2px; }
-.switch { position: relative; width: 48px; height: 26px; cursor: pointer; }
+.switch { position: relative; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
 .switch input { display: none; }
 .switch .slider { position: absolute; inset: 0; background: #475569; border-radius: 26px; transition: 0.3s; }
 .switch .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
@@ -309,7 +313,7 @@ body { font-family: -apple-system, "Noto Sans TC", sans-serif; background: #0f17
 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; padding: 10px 12px; color: #94a3b8; font-weight: 500; border-bottom: 1px solid #334155; font-size: 12px; text-transform: uppercase; }
-td { padding: 10px 12px; border-bottom: 1px solid #1e293b; }
+td { padding: 10px 12px; border-bottom: 1px solid #1e293b; vertical-align: top; }
 tr:hover td { background: #334155; }
 
 .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: 0.2s; }
@@ -317,16 +321,20 @@ tr:hover td { background: #334155; }
 .btn-primary:hover { background: #2563eb; }
 .btn-danger { background: #ef4444; color: white; }
 .btn-danger:hover { background: #dc2626; }
+.btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #475569; }
+.btn-ghost:hover { background: #334155; color: #e2e8f0; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-xs { padding: 2px 8px; font-size: 11px; }
 
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
 .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; font-family: inherit; }
 .form-group textarea { min-height: 80px; resize: vertical; }
+.form-group .hint { font-size: 11px; color: #64748b; margin-top: 4px; }
 
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
 .modal-overlay.show { display: flex; }
-.modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; width: 90%; max-width: 500px; }
+.modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
 .modal h3 { margin-bottom: 20px; font-size: 18px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
@@ -337,6 +345,41 @@ tr:hover td { background: #334155; }
 .badge-fb { background: #1877f220; color: #60a5fa; }
 .badge-ig { background: #e1306c20; color: #f472b6; }
 
+/* FAQ 卡片 */
+.faq-cards { display: flex; flex-direction: column; gap: 12px; }
+.faq-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 18px; transition: border-color 0.2s; }
+.faq-card:hover { border-color: #475569; }
+.faq-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.faq-card-header .left { display: flex; align-items: center; gap: 10px; }
+.faq-card-meta { font-size: 12px; color: #64748b; }
+.faq-card-keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.kw-tag { display: inline-flex; align-items: center; gap: 4px; background: #334155; padding: 3px 10px; border-radius: 6px; font-size: 12px; color: #e2e8f0; }
+.faq-card-answer { font-size: 13px; color: #94a3b8; line-height: 1.5; white-space: pre-wrap; max-height: 60px; overflow: hidden; transition: max-height 0.3s; }
+.faq-card-answer.expanded { max-height: none; }
+.faq-card-footer { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.faq-card .att-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.att-badge { display: inline-flex; align-items: center; gap: 4px; background: #1e3a5f; border: 1px solid #2563eb30; padding: 3px 8px; border-radius: 6px; font-size: 11px; color: #93c5fd; }
+.att-badge img { width: 16px; height: 16px; border-radius: 2px; object-fit: cover; }
+.faq-search { display: flex; gap: 10px; margin-bottom: 16px; }
+.faq-search input { flex: 1; padding: 10px 14px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; }
+.faq-search select { padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; min-width: 120px; }
+
+/* Tag 輸入 */
+.tag-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; min-height: 42px; align-items: center; cursor: text; }
+.tag-input-wrap .tag { display: inline-flex; align-items: center; gap: 4px; background: #334155; padding: 3px 8px; border-radius: 6px; font-size: 12px; color: #e2e8f0; }
+.tag-input-wrap .tag .tag-x { cursor: pointer; color: #94a3b8; font-size: 14px; line-height: 1; }
+.tag-input-wrap .tag .tag-x:hover { color: #f87171; }
+.tag-input-wrap input { border: none; background: none; color: #e2e8f0; font-size: 13px; outline: none; min-width: 80px; flex: 1; padding: 2px 0; }
+
+/* 附件編輯 */
+.att-editor { margin-top: 12px; }
+.att-editor-title { font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+.att-item { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; background: #0f172a; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; }
+.att-item select { padding: 6px 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 12px; }
+.att-item input { flex: 1; padding: 6px 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 12px; }
+.att-item .att-remove { cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0 4px; }
+.att-item .att-remove:hover { color: #f87171; }
+
 .test-area { display: flex; gap: 10px; margin-bottom: 16px; }
 .test-area input { flex: 1; }
 .test-result { background: #0f172a; border-radius: 8px; padding: 16px; min-height: 60px; }
@@ -344,16 +387,18 @@ tr:hover td { background: #334155; }
 .page { display: none; }
 .page.active { display: block; }
 
+.toast { position: fixed; bottom: 24px; right: 24px; background: #22c55e; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
 @media (max-width: 768px) {
   .sidebar { width: 60px; }
   .sidebar-header h1, .sidebar a .text, .sidebar-header .user-info { display: none; }
-  .main { margin-left: 60px; }
+  .main { margin-left: 60px; padding: 16px; }
 }
 </style>
 </head>
 <body>
 
-<!-- 登入頁 -->
 <div class="login-page" id="login-page">
   <div class="login-box">
     <h1>KaiBot</h1>
@@ -365,7 +410,6 @@ tr:hover td { background: #334155; }
   </div>
 </div>
 
-<!-- 主應用 -->
 <div class="app" id="app">
   <div class="sidebar">
     <div class="sidebar-header">
@@ -384,8 +428,10 @@ tr:hover td { background: #334155; }
   </div>
 
   <div class="main">
+    <!-- ===== 儀表板 ===== -->
     <div class="page active" id="page-dashboard">
-      <h2 style="margin-bottom:20px;">儀表板</h2>
+      <h2 style="margin-bottom:12px;">儀表板</h2>
+      <div class="info-box">機器人運作狀態總覽。顯示各平台訊息量、FAQ 與 AI 回覆統計。</div>
       <div class="stats">
         <div class="stat-card"><div class="label">機器人狀態</div><div class="value" id="stat-status">-</div></div>
         <div class="stat-card"><div class="label">FAQ 數量</div><div class="value" id="stat-faq">-</div></div>
@@ -400,44 +446,56 @@ tr:hover td { background: #334155; }
       </div>
     </div>
 
+    <!-- ===== 開關控制 ===== -->
     <div class="page" id="page-toggle">
+      <div class="info-box"><strong>開關控制</strong>：「總開關」關閉後機器人完全停止所有自動回覆。各平台開關可個別控制 Messenger 私訊、FB 貼文留言、IG 私訊、IG 留言。「AI 回覆」開啟後，FAQ 沒命中的訊息會交由 AI 產生回覆；關閉則回傳預設文字。</div>
       <div class="section">
         <h2>機器人開關</h2>
         <div class="toggle-row"><div><div>總開關</div><div class="desc">關閉後所有自動回覆停止</div></div><label class="switch"><input type="checkbox" data-setting="bot_enabled"><span class="slider"></span></label></div>
-        <div class="toggle-row"><div><div>Messenger 私訊</div><div class="desc">Facebook 私訊自動回覆</div></div><label class="switch"><input type="checkbox" data-setting="bot_messenger_enabled"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div><div>Messenger 私訊</div><div class="desc">Facebook Messenger 私訊自動回覆</div></div><label class="switch"><input type="checkbox" data-setting="bot_messenger_enabled"><span class="slider"></span></label></div>
         <div class="toggle-row"><div><div>FB 留言</div><div class="desc">Facebook 貼文留言自動回覆</div></div><label class="switch"><input type="checkbox" data-setting="bot_comment_enabled"><span class="slider"></span></label></div>
         <div class="toggle-row"><div><div>IG 私訊</div><div class="desc">Instagram DM 自動回覆</div></div><label class="switch"><input type="checkbox" data-setting="bot_ig_dm_enabled"><span class="slider"></span></label></div>
         <div class="toggle-row"><div><div>IG 留言</div><div class="desc">Instagram 貼文留言自動回覆</div></div><label class="switch"><input type="checkbox" data-setting="bot_ig_comment_enabled"><span class="slider"></span></label></div>
       </div>
       <div class="section">
         <h2>AI 設定</h2>
-        <div class="toggle-row"><div><div>AI 回覆</div><div class="desc">FAQ 沒命中時用 AI 生成回覆（關閉後回覆預設文字）</div></div><label class="switch"><input type="checkbox" data-setting="ai_enabled"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div><div>AI 回覆</div><div class="desc">FAQ 沒命中時用 AI 生成回覆；關閉後回覆預設文字「感謝您的訊息！我們的團隊會盡快回覆您」</div></div><label class="switch"><input type="checkbox" data-setting="ai_enabled"><span class="slider"></span></label></div>
       </div>
     </div>
 
+    <!-- ===== FAQ 管理 ===== -->
     <div class="page" id="page-faq">
+      <div class="info-box"><strong>FAQ 自動回覆</strong>：當收到的訊息包含任一關鍵字時，自動回覆對應內容。優先級越高越先比對（數字大 = 優先）。可附加連結、圖片或檔案，私訊會以獨立訊息發送附件，留言則自動將連結附在回覆文字末尾。</div>
       <div class="section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h2>FAQ 管理</h2>
-          <button class="btn btn-primary" onclick="showAddFaq()">+ 新增</button>
+          <h2 style="margin-bottom:0;">FAQ 管理</h2>
+          <button class="btn btn-primary" onclick="showFaqModal()">+ 新增 FAQ</button>
         </div>
-        <table><thead><tr><th>狀態</th><th>分類</th><th>關鍵字</th><th>回覆內容</th><th>優先級</th><th>操作</th></tr></thead><tbody id="faq-table"></tbody></table>
+        <div class="faq-search">
+          <input type="text" id="faq-search" placeholder="搜尋關鍵字或回覆內容..." oninput="filterFaqs()">
+          <select id="faq-filter-cat" onchange="filterFaqs()"><option value="">全部分類</option></select>
+          <select id="faq-filter-status" onchange="filterFaqs()"><option value="">全部狀態</option><option value="1">啟用</option><option value="0">停用</option></select>
+        </div>
+        <div class="faq-cards" id="faq-list"></div>
       </div>
     </div>
 
+    <!-- ===== 測試回覆 ===== -->
     <div class="page" id="page-test">
+      <div class="info-box"><strong>測試回覆</strong>：模擬使用者傳送訊息，預覽機器人會如何回覆。<strong>不會真的發送任何訊息</strong>。可用來測試 FAQ 關鍵字是否正確命中，或預覽 AI 生成的回覆內容。</div>
       <div class="section">
-        <h2>測試回覆</h2>
-        <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">模擬客戶提問，預覽機器人回覆（不實際發送）</p>
+        <h2 style="margin-bottom:16px;">測試回覆</h2>
         <div class="test-area">
-          <input type="text" id="test-input" placeholder="輸入測試訊息..." onkeydown="if(event.key==='Enter')testReply()">
+          <input type="text" id="test-input" placeholder="輸入測試訊息，例如：你們怎麼收費？" onkeydown="if(event.key==='Enter')testReply()">
           <button class="btn btn-primary" onclick="testReply()">測試</button>
         </div>
-        <div class="test-result" id="test-result"><span style="color:#64748b;">結果會顯示在這裡...</span></div>
+        <div class="test-result" id="test-result"><span style="color:#64748b;">輸入訊息後按「測試」，結果會顯示在這裡</span></div>
       </div>
     </div>
 
+    <!-- ===== 訊息日誌 ===== -->
     <div class="page" id="page-logs">
+      <div class="info-box"><strong>訊息日誌</strong>：所有收到的訊息與機器人回覆的完整紀錄。可查看每則訊息來自哪個平台、回覆來源是 FAQ 還是 AI。</div>
       <div class="section">
         <h2>訊息日誌</h2>
         <table><thead><tr><th>時間</th><th>平台</th><th>類型</th><th>收到訊息</th><th>回覆</th><th>來源</th></tr></thead><tbody id="logs-table"></tbody></table>
@@ -445,10 +503,12 @@ tr:hover td { background: #334155; }
       </div>
     </div>
 
+    <!-- ===== 封鎖名單 ===== -->
     <div class="page" id="page-blocklist">
+      <div class="info-box"><strong>封鎖名單</strong>：被封鎖的用戶將不會收到任何自動回覆。用戶 ID 可從「訊息日誌」中複製。</div>
       <div class="section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h2>封鎖名單</h2>
+          <h2 style="margin-bottom:0;">封鎖名單</h2>
           <button class="btn btn-primary" onclick="showAddBlock()">+ 新增封鎖</button>
         </div>
         <table><thead><tr><th>用戶 ID</th><th>原因</th><th>封鎖時間</th><th>操作</th></tr></thead><tbody id="block-table"></tbody></table>
@@ -457,19 +517,38 @@ tr:hover td { background: #334155; }
   </div>
 </div>
 
-<!-- FAQ Modal -->
+<!-- FAQ 新增/編輯 Modal -->
 <div class="modal-overlay" id="faq-modal">
   <div class="modal">
     <h3 id="faq-modal-title">新增 FAQ</h3>
     <input type="hidden" id="faq-edit-id">
-    <div class="form-group"><label>關鍵字（逗號分隔）</label><input type="text" id="faq-keywords" placeholder="價格,多少錢,費用"></div>
-    <div class="form-group"><label>回覆內容</label><textarea id="faq-answer" placeholder="機器人回覆..."></textarea></div>
-    <div style="display:flex;gap:12px;">
-      <div class="form-group" style="flex:1;"><label>分類</label><input type="text" id="faq-category" placeholder="價格"></div>
-      <div class="form-group" style="flex:1;"><label>優先級</label><input type="number" id="faq-priority" value="5"></div>
+
+    <div class="form-group">
+      <label>關鍵字</label>
+      <div class="tag-input-wrap" id="kw-tags" onclick="document.getElementById('kw-input').focus()">
+        <input type="text" id="kw-input" placeholder="輸入關鍵字後按 Enter">
+      </div>
+      <div class="hint">每個關鍵字獨立比對，訊息中包含任一關鍵字就會命中此 FAQ</div>
     </div>
+
+    <div class="form-group">
+      <label>回覆內容</label>
+      <textarea id="faq-answer" rows="4" placeholder="機器人回覆內容...支援換行"></textarea>
+    </div>
+
+    <div style="display:flex;gap:12px;">
+      <div class="form-group" style="flex:1;"><label>分類</label><input type="text" id="faq-category" placeholder="例如：價格、服務"><div class="hint">用於篩選，選填</div></div>
+      <div class="form-group" style="width:100px;"><label>優先級</label><input type="number" id="faq-priority" value="5"><div class="hint">越大越先比對</div></div>
+    </div>
+
+    <div class="att-editor">
+      <div class="att-editor-title">附件（選填）— 命中時隨回覆一起發送</div>
+      <div id="att-list"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addAttRow()" style="margin-top:4px;">+ 新增附件</button>
+    </div>
+
     <div class="modal-actions">
-      <button class="btn" style="background:#475569;color:white;" onclick="closeFaqModal()">取消</button>
+      <button class="btn btn-ghost" onclick="closeFaqModal()">取消</button>
       <button class="btn btn-primary" onclick="saveFaq()">儲存</button>
     </div>
   </div>
@@ -479,166 +558,276 @@ tr:hover td { background: #334155; }
 <div class="modal-overlay" id="block-modal">
   <div class="modal">
     <h3>新增封鎖</h3>
-    <div class="form-group"><label>用戶 ID</label><input type="text" id="block-sender-id" placeholder="從日誌複製"></div>
-    <div class="form-group"><label>原因（選填）</label><input type="text" id="block-reason" placeholder="騷擾、spam..."></div>
+    <div class="form-group"><label>用戶 ID</label><input type="text" id="block-sender-id" placeholder="從訊息日誌中複製用戶 ID"></div>
+    <div class="form-group"><label>原因（選填）</label><input type="text" id="block-reason" placeholder="例如：騷擾、spam"></div>
     <div class="modal-actions">
-      <button class="btn" style="background:#475569;color:white;" onclick="closeBlockModal()">取消</button>
+      <button class="btn btn-ghost" onclick="closeBlockModal()">取消</button>
       <button class="btn btn-danger" onclick="saveBlock()">封鎖</button>
     </div>
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
 const API = '/api/bot';
 let logOffset = 0;
+let allFaqs = [];
 
-// ========== 認證檢查 ==========
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ===== Auth =====
 async function checkAuth() {
-  const res = await fetch(API + '/me').then(r => r.json());
+  const res = await fetch(API+'/me').then(r=>r.json());
   if (!res.loggedIn) return;
   if (!res.hasAccess) {
-    document.getElementById('login-content').innerHTML = '<p class="denied">您的帳號（' + res.email + '）沒有存取權限</p><p style="margin-top:8px;font-size:12px;color:#64748b;">僅限 @2him.net 網域</p><a href="/api/logout" class="login-btn" style="margin-top:16px;background:#475569;">登出</a>';
+    document.getElementById('login-content').innerHTML='<p class="denied">您的帳號（'+esc(res.email)+'）沒有存取權限</p><p style="margin-top:8px;font-size:12px;color:#64748b;">僅限 @2him.net 網域</p><a href="/api/logout" class="login-btn" style="margin-top:16px;background:#475569;">登出</a>';
     return;
   }
-  document.getElementById('login-page').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('user-email').textContent = res.email;
-  loadStats();
-  loadSettings();
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('user-email').textContent=res.email;
+  loadStats(); loadSettings();
 }
 checkAuth();
 
-// ========== 頁面切換 ==========
-document.querySelectorAll('.sidebar nav a').forEach(a => {
-  a.addEventListener('click', e => {
+// ===== Nav =====
+document.querySelectorAll('.sidebar nav a').forEach(a=>{
+  a.addEventListener('click',e=>{
     e.preventDefault();
-    document.querySelectorAll('.sidebar nav a').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.sidebar nav a').forEach(x=>x.classList.remove('active'));
     a.classList.add('active');
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-' + a.dataset.page).classList.add('active');
-    if (a.dataset.page === 'dashboard') loadStats();
-    if (a.dataset.page === 'faq') loadFaqs();
-    if (a.dataset.page === 'logs') { logOffset = 0; loadLogs(); }
-    if (a.dataset.page === 'toggle') loadSettings();
-    if (a.dataset.page === 'blocklist') loadBlocklist();
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+a.dataset.page).classList.add('active');
+    if(a.dataset.page==='dashboard') loadStats();
+    if(a.dataset.page==='faq') loadFaqs();
+    if(a.dataset.page==='logs') { logOffset=0; loadLogs(); }
+    if(a.dataset.page==='toggle') loadSettings();
+    if(a.dataset.page==='blocklist') loadBlocklist();
   });
 });
 
-// ========== 統計 ==========
+// ===== Stats =====
 async function loadStats() {
-  const res = await fetch(API + '/stats').then(r => r.json());
-  const d = res.data; const el = id => document.getElementById(id);
-  el('stat-status').textContent = d.botEnabled ? '運行中' : '已暫停';
-  el('stat-status').className = 'value ' + (d.botEnabled ? 'on' : 'off');
-  el('stat-faq').textContent = d.faqCount;
-  el('stat-total').textContent = d.total;
-  const h = Math.floor(d.uptime/3600), m = Math.floor((d.uptime%3600)/60);
-  el('stat-uptime').textContent = h > 0 ? h+'h '+m+'m' : m+'m';
-  el('stat-fb').textContent = d.byPlatform.facebook || 0;
-  el('stat-ig').textContent = d.byPlatform.instagram || 0;
-  el('stat-faq-reply').textContent = d.bySource.faq || 0;
-  el('stat-ai-reply').textContent = d.bySource.ai || 0;
+  const res = await fetch(API+'/stats').then(r=>r.json());
+  const d=res.data, el=id=>document.getElementById(id);
+  el('stat-status').textContent=d.botEnabled?'運行中':'已暫停';
+  el('stat-status').className='value '+(d.botEnabled?'on':'off');
+  el('stat-faq').textContent=d.faqCount;
+  el('stat-total').textContent=d.total;
+  const h=Math.floor(d.uptime/3600),m=Math.floor((d.uptime%3600)/60);
+  el('stat-uptime').textContent=h>0?h+'h '+m+'m':m+'m';
+  el('stat-fb').textContent=d.byPlatform.facebook||0;
+  el('stat-ig').textContent=d.byPlatform.instagram||0;
+  el('stat-faq-reply').textContent=d.bySource.faq||0;
+  el('stat-ai-reply').textContent=d.bySource.ai||0;
 }
 
-// ========== 設定 ==========
+// ===== Settings =====
 async function loadSettings() {
-  const res = await fetch(API + '/settings').then(r => r.json());
-  document.querySelectorAll('[data-setting]').forEach(input => {
-    input.checked = res.data[input.dataset.setting] === 'true';
-  });
+  const res=await fetch(API+'/settings').then(r=>r.json());
+  document.querySelectorAll('[data-setting]').forEach(input=>{input.checked=res.data[input.dataset.setting]==='true';});
 }
-document.querySelectorAll('[data-setting]').forEach(input => {
-  input.addEventListener('change', async () => {
-    await fetch(API + '/settings', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({[input.dataset.setting]: String(input.checked)}) });
+document.querySelectorAll('[data-setting]').forEach(input=>{
+  input.addEventListener('change',async()=>{
+    await fetch(API+'/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({[input.dataset.setting]:String(input.checked)})});
+    toast(input.checked?'已開啟':'已關閉');
   });
 });
 
-// ========== FAQ ==========
+// ===== FAQ =====
 async function loadFaqs() {
-  const res = await fetch(API + '/faq').then(r => r.json());
-  document.getElementById('faq-table').innerHTML = res.data.map(f => '<tr>'
-    +'<td><label class="switch" style="transform:scale(0.8);"><input type="checkbox" '+(f.enabled?'checked':'')+' onchange="toggleFaq(\\''+f.id+'\\',this.checked)"><span class="slider"></span></label></td>'
-    +'<td>'+(f.category||'-')+'</td>'
-    +'<td style="max-width:200px;">'+f.keywords.split(',').map(k=>'<code style="background:#334155;padding:2px 6px;border-radius:4px;font-size:12px;margin:1px;">'+k.trim()+'</code>').join(' ')+'</td>'
-    +'<td style="max-width:300px;font-size:13px;color:#94a3b8;">'+f.answer.substring(0,80)+(f.answer.length>80?'...':'')+'</td>'
-    +'<td>'+(f.priority||0)+'</td>'
-    +'<td><button class="btn btn-sm btn-primary" onclick="editFaq(\\''+f.id+'\\')">編輯</button> <button class="btn btn-sm btn-danger" onclick="deleteFaq(\\''+f.id+'\\')">刪除</button></td>'
-    +'</tr>').join('');
+  const res=await fetch(API+'/faq').then(r=>r.json());
+  allFaqs=res.data;
+  // 填充分類篩選
+  const cats=[...new Set(allFaqs.map(f=>f.category).filter(Boolean))];
+  const sel=document.getElementById('faq-filter-cat');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">全部分類</option>'+cats.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+  sel.value=cur;
+  renderFaqs();
 }
-async function editFaq(id) {
-  const res = await fetch(API + '/faq').then(r => r.json());
-  const f = res.data.find(x => x.id === id); if (!f) return;
-  document.getElementById('faq-modal-title').textContent = '編輯 FAQ';
-  document.getElementById('faq-edit-id').value = id;
-  document.getElementById('faq-keywords').value = f.keywords;
-  document.getElementById('faq-answer').value = f.answer;
-  document.getElementById('faq-category').value = f.category || '';
-  document.getElementById('faq-priority').value = f.priority || 0;
+
+function filterFaqs() { renderFaqs(); }
+
+function renderFaqs() {
+  const q=(document.getElementById('faq-search').value||'').toLowerCase();
+  const cat=document.getElementById('faq-filter-cat').value;
+  const status=document.getElementById('faq-filter-status').value;
+  let list=allFaqs;
+  if(q) list=list.filter(f=>(f.keywords+' '+f.answer).toLowerCase().includes(q));
+  if(cat) list=list.filter(f=>f.category===cat);
+  if(status!=='') list=list.filter(f=>String(f.enabled)===status);
+
+  document.getElementById('faq-list').innerHTML=list.length===0
+    ?'<div style="text-align:center;color:#64748b;padding:40px;">沒有符合條件的 FAQ</div>'
+    :list.map(f=>{
+      const kws=(f.keywords||'').split(',').filter(Boolean);
+      let atts=[];
+      try{atts=JSON.parse(f.attachments||'[]');}catch{}
+      const attHtml=atts.length?'<div class="att-list">'+atts.map(a=>{
+        const icon=a.type==='image'?'🖼️':a.type==='file'?'📄':'🔗';
+        return '<span class="att-badge">'+icon+' '+esc(a.title||a.url).substring(0,30)+'</span>';
+      }).join('')+'</div>':'';
+      return '<div class="faq-card" data-id="'+f.id+'">'
+        +'<div class="faq-card-header">'
+          +'<div class="left">'
+            +'<label class="switch" style="transform:scale(0.8);"><input type="checkbox" '+(f.enabled?'checked':'')+' onchange="toggleFaq(event,\\''+f.id+'\\',this.checked)"><span class="slider"></span></label>'
+            +'<span class="faq-card-meta">'+(f.category?'<span class="badge badge-faq">'+esc(f.category)+'</span> ':'')+'優先級: '+f.priority+'</span>'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;">'
+            +'<button class="btn btn-sm btn-ghost" onclick="editFaq(\\''+f.id+'\\')">編輯</button>'
+            +'<button class="btn btn-sm btn-danger" onclick="deleteFaq(\\''+f.id+'\\')">刪除</button>'
+          +'</div>'
+        +'</div>'
+        +'<div class="faq-card-keywords">'+kws.map(k=>'<span class="kw-tag">'+esc(k.trim())+'</span>').join('')+'</div>'
+        +'<div class="faq-card-answer" onclick="this.classList.toggle(\\'expanded\\')">'+esc(f.answer)+'</div>'
+        +attHtml
+      +'</div>';
+    }).join('');
+}
+
+// ===== Tag Input =====
+let faqKeywords=[];
+function renderTags() {
+  const wrap=document.getElementById('kw-tags');
+  const input=document.getElementById('kw-input');
+  wrap.querySelectorAll('.tag').forEach(t=>t.remove());
+  faqKeywords.forEach((kw,i)=>{
+    const span=document.createElement('span');
+    span.className='tag';
+    span.innerHTML=esc(kw)+'<span class="tag-x" onclick="removeTag('+i+')">&times;</span>';
+    wrap.insertBefore(span,input);
+  });
+}
+function removeTag(i) { faqKeywords.splice(i,1); renderTags(); }
+document.getElementById('kw-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();
+    const v=e.target.value.trim().replace(/,/g,'');
+    if(v&&!faqKeywords.includes(v)){faqKeywords.push(v);e.target.value='';renderTags();}
+  }
+  if(e.key==='Backspace'&&!e.target.value&&faqKeywords.length){faqKeywords.pop();renderTags();}
+});
+
+// ===== Attachment Editor =====
+let faqAttachments=[];
+function renderAtts() {
+  document.getElementById('att-list').innerHTML=faqAttachments.map((a,i)=>
+    '<div class="att-item">'
+      +'<select onchange="faqAttachments['+i+'].type=this.value">'
+        +'<option value="link"'+(a.type==='link'?' selected':'')+'>🔗 連結</option>'
+        +'<option value="image"'+(a.type==='image'?' selected':'')+'>🖼️ 圖片</option>'
+        +'<option value="file"'+(a.type==='file'?' selected':'')+'>📄 檔案</option>'
+      +'</select>'
+      +'<input placeholder="標題（選填）" value="'+esc(a.title||'')+'" onchange="faqAttachments['+i+'].title=this.value">'
+      +'<input placeholder="URL" value="'+esc(a.url||'')+'" onchange="faqAttachments['+i+'].url=this.value" style="flex:2;">'
+      +'<span class="att-remove" onclick="faqAttachments.splice('+i+',1);renderAtts();">&times;</span>'
+    +'</div>'
+  ).join('');
+}
+function addAttRow() { faqAttachments.push({type:'link',url:'',title:''}); renderAtts(); }
+
+// ===== FAQ Modal =====
+function showFaqModal(id) {
+  const isEdit=!!id;
+  document.getElementById('faq-modal-title').textContent=isEdit?'編輯 FAQ':'新增 FAQ';
+  document.getElementById('faq-edit-id').value=id||'';
+  if(isEdit){
+    const f=allFaqs.find(x=>x.id===id);if(!f)return;
+    faqKeywords=(f.keywords||'').split(',').map(k=>k.trim()).filter(Boolean);
+    document.getElementById('faq-answer').value=f.answer;
+    document.getElementById('faq-category').value=f.category||'';
+    document.getElementById('faq-priority').value=f.priority||0;
+    try{faqAttachments=JSON.parse(f.attachments||'[]');}catch{faqAttachments=[];}
+  } else {
+    faqKeywords=[]; faqAttachments=[];
+    document.getElementById('faq-answer').value='';
+    document.getElementById('faq-category').value='';
+    document.getElementById('faq-priority').value='5';
+  }
+  document.getElementById('kw-input').value='';
+  renderTags(); renderAtts();
   document.getElementById('faq-modal').classList.add('show');
 }
-function showAddFaq() {
-  document.getElementById('faq-modal-title').textContent = '新增 FAQ';
-  document.getElementById('faq-edit-id').value = '';
-  document.getElementById('faq-keywords').value = '';
-  document.getElementById('faq-answer').value = '';
-  document.getElementById('faq-category').value = '';
-  document.getElementById('faq-priority').value = '5';
-  document.getElementById('faq-modal').classList.add('show');
-}
-function closeFaqModal() { document.getElementById('faq-modal').classList.remove('show'); }
+function editFaq(id){showFaqModal(id);}
+function closeFaqModal(){document.getElementById('faq-modal').classList.remove('show');}
+
 async function saveFaq() {
-  const id = document.getElementById('faq-edit-id').value;
-  const data = { keywords: document.getElementById('faq-keywords').value, answer: document.getElementById('faq-answer').value, category: document.getElementById('faq-category').value, priority: parseInt(document.getElementById('faq-priority').value)||0 };
-  if (id) await fetch(API+'/faq/'+id, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  else await fetch(API+'/faq', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-  closeFaqModal(); loadFaqs();
+  if(!faqKeywords.length){alert('請至少輸入一個關鍵字');return;}
+  const answer=document.getElementById('faq-answer').value.trim();
+  if(!answer){alert('請輸入回覆內容');return;}
+  const id=document.getElementById('faq-edit-id').value;
+  const data={
+    keywords:faqKeywords,
+    answer,
+    category:document.getElementById('faq-category').value.trim(),
+    priority:parseInt(document.getElementById('faq-priority').value)||0,
+    attachments:faqAttachments.filter(a=>a.url),
+  };
+  if(id) await fetch(API+'/faq/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  else await fetch(API+'/faq',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  closeFaqModal(); loadFaqs(); toast('FAQ 已儲存');
 }
-async function deleteFaq(id) { if(!confirm('確定刪除？'))return; await fetch(API+'/faq/'+id,{method:'DELETE'}); loadFaqs(); }
-async function toggleFaq(id, on) { await fetch(API+'/faq/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:on?1:0})}); }
+async function deleteFaq(id){if(!confirm('確定刪除這則 FAQ？'))return;await fetch(API+'/faq/'+id,{method:'DELETE'});loadFaqs();toast('已刪除');}
+function toggleFaq(e,id,on){e.stopPropagation();fetch(API+'/faq/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:on?1:0})}).then(()=>toast(on?'已啟用':'已停用'));}
 
-// ========== 測試 ==========
+// ===== Test =====
 async function testReply() {
-  const msg = document.getElementById('test-input').value.trim(); if(!msg)return;
-  document.getElementById('test-result').innerHTML = '<span style="color:#64748b;">AI 思考中...</span>';
-  const res = await fetch(API+'/test-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})}).then(r=>r.json());
-  const bc = res.source==='faq'?'badge-faq':res.source==='ai'?'badge-ai':'badge-default';
-  const lb = res.source==='faq'?'FAQ':res.source==='ai'?'AI':'預設';
-  document.getElementById('test-result').innerHTML = '<div style="margin-bottom:8px;"><span class="badge '+bc+'">'+lb+'</span> '+(res.faqId?'('+res.faqId+')':'')+'</div><div style="white-space:pre-wrap;">'+res.reply+'</div>';
+  const msg=document.getElementById('test-input').value.trim();if(!msg)return;
+  document.getElementById('test-result').innerHTML='<span style="color:#64748b;">思考中...</span>';
+  const res=await fetch(API+'/test-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})}).then(r=>r.json());
+  const bc=res.source==='faq'?'badge-faq':res.source==='ai'?'badge-ai':'badge-default';
+  const lb=res.source==='faq'?'FAQ 命中':res.source==='ai'?'AI 生成':'預設回覆';
+  let attHtml='';
+  if(res.attachments&&res.attachments.length){
+    attHtml='<div style="margin-top:10px;padding-top:10px;border-top:1px solid #334155;"><div style="font-size:12px;color:#64748b;margin-bottom:6px;">附件：</div>'
+      +res.attachments.map(a=>{
+        const icon=a.type==='image'?'🖼️':a.type==='file'?'📄':'🔗';
+        return '<div style="font-size:13px;margin-bottom:4px;">'+icon+' '+(a.title?esc(a.title)+' — ':'')+esc(a.url)+'</div>';
+      }).join('')+'</div>';
+  }
+  document.getElementById('test-result').innerHTML='<div style="margin-bottom:8px;"><span class="badge '+bc+'">'+lb+'</span> '+(res.faqId?'<span style="font-size:12px;color:#64748b;">('+esc(res.faqId)+')</span>':'')+'</div><div style="white-space:pre-wrap;">'+esc(res.reply)+'</div>'+attHtml;
 }
 
-// ========== 日誌 ==========
+// ===== Logs =====
 async function loadLogs(append) {
   if(!append) logOffset=0;
-  const res = await fetch(API+'/logs?limit=30&offset='+logOffset).then(r=>r.json());
-  const html = res.data.map(l => '<tr>'
+  const res=await fetch(API+'/logs?limit=30&offset='+logOffset).then(r=>r.json());
+  const html=res.data.map(l=>'<tr>'
     +'<td style="white-space:nowrap;font-size:12px;color:#64748b;">'+(l.createdAt||'')+'</td>'
     +'<td><span class="badge '+(l.platform==='facebook'?'badge-fb':'badge-ig')+'">'+(l.platform==='facebook'?'FB':'IG')+'</span></td>'
-    +'<td style="font-size:13px;">'+l.type+'</td>'
-    +'<td style="max-width:250px;font-size:13px;">'+(l.message||'').substring(0,60)+'</td>'
-    +'<td style="max-width:250px;font-size:13px;color:#94a3b8;">'+(l.reply||'').substring(0,60)+'</td>'
+    +'<td style="font-size:13px;">'+esc(l.type)+'</td>'
+    +'<td style="max-width:250px;font-size:13px;">'+esc((l.message||'').substring(0,80))+'</td>'
+    +'<td style="max-width:250px;font-size:13px;color:#94a3b8;">'+esc((l.reply||'').substring(0,80))+'</td>'
     +'<td><span class="badge '+(l.replySource==='faq'?'badge-faq':l.replySource==='ai'?'badge-ai':'badge-default')+'">'+(l.replySource||'-')+'</span></td>'
     +'</tr>').join('');
-  const tbody = document.getElementById('logs-table');
-  if(append) tbody.innerHTML += html; else tbody.innerHTML = html;
-  logOffset += res.data.length;
-  document.getElementById('load-more-logs').style.display = res.data.length<30?'none':'';
+  const tbody=document.getElementById('logs-table');
+  if(append) tbody.innerHTML+=html; else tbody.innerHTML=html;
+  logOffset+=res.data.length;
+  document.getElementById('load-more-logs').style.display=res.data.length<30?'none':'';
 }
-function loadMoreLogs() { loadLogs(true); }
+function loadMoreLogs(){loadLogs(true);}
 
-// ========== 封鎖 ==========
+// ===== Blocklist =====
 async function loadBlocklist() {
-  const res = await fetch(API+'/blocklist').then(r=>r.json());
-  document.getElementById('block-table').innerHTML = res.data.map(b => '<tr><td style="font-family:monospace;font-size:13px;">'+b.senderId+'</td><td>'+(b.reason||'-')+'</td><td style="font-size:12px;color:#64748b;">'+(b.createdAt||'')+'</td><td><button class="btn btn-sm btn-danger" onclick="removeBlock(\\''+b.senderId+'\\')">解除</button></td></tr>').join('')
-    || '<tr><td colspan="4" style="text-align:center;color:#64748b;">目前沒有封鎖的用戶</td></tr>';
+  const res=await fetch(API+'/blocklist').then(r=>r.json());
+  document.getElementById('block-table').innerHTML=res.data.map(b=>'<tr><td style="font-family:monospace;font-size:13px;">'+esc(b.senderId)+'</td><td>'+esc(b.reason||'-')+'</td><td style="font-size:12px;color:#64748b;">'+(b.createdAt||'')+'</td><td><button class="btn btn-sm btn-danger" onclick="removeBlock(\\''+esc(b.senderId)+'\\')">解除</button></td></tr>').join('')
+    ||'<tr><td colspan="4" style="text-align:center;color:#64748b;">目前沒有封鎖的用戶</td></tr>';
 }
-function showAddBlock() { document.getElementById('block-modal').classList.add('show'); }
-function closeBlockModal() { document.getElementById('block-modal').classList.remove('show'); }
-async function saveBlock() {
-  const sid = document.getElementById('block-sender-id').value.trim(); if(!sid)return;
+function showAddBlock(){document.getElementById('block-sender-id').value='';document.getElementById('block-reason').value='';document.getElementById('block-modal').classList.add('show');}
+function closeBlockModal(){document.getElementById('block-modal').classList.remove('show');}
+async function saveBlock(){
+  const sid=document.getElementById('block-sender-id').value.trim();if(!sid)return;
   await fetch(API+'/blocklist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender_id:sid,reason:document.getElementById('block-reason').value})});
-  closeBlockModal(); loadBlocklist();
+  closeBlockModal();loadBlocklist();toast('已封鎖');
 }
-async function removeBlock(id) { if(!confirm('確定解除？'))return; await fetch(API+'/blocklist/'+encodeURIComponent(id),{method:'DELETE'}); loadBlocklist(); }
+async function removeBlock(id){if(!confirm('確定解除封鎖？'))return;await fetch(API+'/blocklist/'+encodeURIComponent(id),{method:'DELETE'});loadBlocklist();toast('已解除');}
 </script>
 </body>
 </html>`;

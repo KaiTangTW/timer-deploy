@@ -68,14 +68,14 @@ export const faqOps = {
     return null;
   },
 
-  async add(data: { keywords: string; answer: string; category?: string; priority?: number }) {
+  async add(data: { keywords: string; answer: string; category?: string; priority?: number; attachments?: string }) {
     const id = `faq_${Date.now()}`;
-    await db.insert(botFaqs).values({ id, keywords: data.keywords, answer: data.answer, category: data.category || "", priority: data.priority || 0 });
+    await db.insert(botFaqs).values({ id, keywords: data.keywords, answer: data.answer, category: data.category || "", priority: data.priority || 0, attachments: data.attachments || "[]" });
     const rows = await db.select().from(botFaqs).where(eq(botFaqs.id, id));
     return rows[0];
   },
 
-  async update(id: string, data: Partial<{ keywords: string; answer: string; category: string; priority: number; enabled: number }>) {
+  async update(id: string, data: Partial<{ keywords: string; answer: string; category: string; priority: number; enabled: number; attachments: string }>) {
     const existing = await db.select().from(botFaqs).where(eq(botFaqs.id, id));
     if (existing.length === 0) return null;
     await db.update(botFaqs).set({ ...data, updatedAt: new Date() }).where(eq(botFaqs.id, id));

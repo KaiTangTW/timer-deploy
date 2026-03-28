@@ -68,6 +68,7 @@ export const botFaqs = pgTable("bot_faqs", {
   category: text("category").default(""),
   priority: integer("priority").default(0),
   enabled: integer("enabled").default(1),
+  attachments: text("attachments").default("[]"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -7,8 +7,11 @@ import { generateAIReply } from "./ai";
 import {
   replyToComment,
   sendMessengerMessage,
+  sendMessengerAttachment,
   replyToIGComment,
   sendIGMessage,
+  sendIGAttachment,
+  type Attachment,
 } from "./meta-api";
 
 // 已回覆快取
@@ -34,20 +37,33 @@ async function isBotEnabled(channel: string): Promise<boolean> {
   return map[channel] ? settingsOps.isEnabled(map[channel]) : true;
 }
 
+/** 留言回覆不支援附件，改為文字連結附在末尾 */
+function appendAttachmentLinks(text: string, attachments: Attachment[]): string {
+  if (attachments.length === 0) return text;
+  const links = attachments.map(a => a.title ? `${a.title}：${a.url}` : a.url);
+  return text + "\n\n" + links.join("\n");
+}
+
+function parseAttachments(raw?: string | null): Attachment[] {
+  if (!raw) return [];
+  try { const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; }
+  catch { return []; }
+}
+
 async function getReply(message: string, context?: { isComment?: boolean; postContent?: string }) {
   const faqMatch = await faqOps.match(message);
   if (faqMatch) {
     console.log(`[Bot] FAQ 命中: ${faqMatch.id}`);
-    return { reply: faqMatch.answer, source: "faq" };
+    return { reply: faqMatch.answer, source: "faq", attachments: parseAttachments(faqMatch.attachments) };
   }
 
   if (!(await settingsOps.isEnabled("ai_enabled"))) {
-    return { reply: "感謝您的訊息！我們的團隊會盡快回覆您 😊", source: "default" };
+    return { reply: "感謝您的訊息！我們的團隊會盡快回覆您 😊", source: "default", attachments: [] as Attachment[] };
   }
 
   console.log(`[Bot] FAQ 未命中，使用 AI`);
   const reply = await generateAIReply(message, context);
-  return { reply, source: "ai" };
+  return { reply, source: "ai", attachments: [] as Attachment[] };
 }
 
 export async function handleFBComment(event: { commentId: string; message: string; senderId: string; postId?: string }) {
@@ -57,10 +73,12 @@ export async function handleFBComment(event: { commentId: string; message: strin
   if (await blocklistOps.isBlocked(senderId)) return;
   if (message.trim().length < 2) return;
 
-  const { reply, source } = await getReply(message, { isComment: true });
-  await replyToComment(commentId, reply);
+  const { reply, source, attachments } = await getReply(message, { isComment: true });
+  // 留言只能回文字，附件連結附在文字末尾
+  const replyText = appendAttachmentLinks(reply, attachments);
+  await replyToComment(commentId, replyText);
   markReplied(commentId);
-  await logOps.add({ platform: "facebook", type: "comment", sender_id: senderId, message, reply, reply_source: source });
+  await logOps.add({ platform: "facebook", type: "comment", sender_id: senderId, message, reply: replyText, reply_source: source });
   console.log(`[Bot] ✅ FB 留言 ${commentId} (${source})`);
 }
 
@@ -70,8 +88,11 @@ export async function handleMessengerMessage(event: { senderId: string; messageI
   if (!(await isBotEnabled("messenger"))) return;
   if (await blocklistOps.isBlocked(senderId)) return;
 
-  const { reply, source } = await getReply(message, { isComment: false });
+  const { reply, source, attachments } = await getReply(message, { isComment: false });
   await sendMessengerMessage(senderId, reply);
+  for (const att of attachments) {
+    await sendMessengerAttachment(senderId, att);
+  }
   markReplied(messageId);
   await logOps.add({ platform: "facebook", type: "messenger", sender_id: senderId, message, reply, reply_source: source });
   console.log(`[Bot] ✅ Messenger ${messageId} (${source})`);
@@ -84,10 +105,11 @@ export async function handleIGComment(event: { commentId: string; message: strin
   if (await blocklistOps.isBlocked(senderId)) return;
   if (message.trim().length < 2) return;
 
-  const { reply, source } = await getReply(message, { isComment: true });
-  await replyToIGComment(commentId, reply);
+  const { reply, source, attachments } = await getReply(message, { isComment: true });
+  const replyText = appendAttachmentLinks(reply, attachments);
+  await replyToIGComment(commentId, replyText);
   markReplied(commentId);
-  await logOps.add({ platform: "instagram", type: "comment", sender_id: senderId, message, reply, reply_source: source });
+  await logOps.add({ platform: "instagram", type: "comment", sender_id: senderId, message, reply: replyText, reply_source: source });
   console.log(`[Bot] ✅ IG 留言 ${commentId} (${source})`);
 }
 
@@ -97,8 +119,11 @@ export async function handleIGDirectMessage(event: { senderId: string; messageId
   if (!(await isBotEnabled("ig_dm"))) return;
   if (await blocklistOps.isBlocked(senderId)) return;
 
-  const { reply, source } = await getReply(message, { isComment: false });
+  const { reply, source, attachments } = await getReply(message, { isComment: false });
   await sendIGMessage(senderId, reply);
+  for (const att of attachments) {
+    await sendIGAttachment(senderId, att);
+  }
   markReplied(messageId);
   await logOps.add({ platform: "instagram", type: "dm", sender_id: senderId, message, reply, reply_source: source });
   console.log(`[Bot] ✅ IG DM ${messageId} (${source})`);
