@@ -84,6 +84,7 @@ export const botMessageLogs = pgTable("bot_message_logs", {
   platform: text("platform").notNull(),
   type: text("type").notNull(),
   senderId: text("sender_id").default(""),
+  senderName: text("sender_name").default(""),
   message: text("message").default(""),
   reply: text("reply").default(""),
   replySource: text("reply_source").default(""),

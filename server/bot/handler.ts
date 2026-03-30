@@ -11,6 +11,7 @@ import {
   replyToIGComment,
   sendIGMessage,
   sendIGAttachment,
+  getSenderName,
   type Attachment,
 } from "./meta-api";
 
@@ -84,13 +85,16 @@ export async function handleFBComment(event: { commentId: string; message: strin
   if (await blocklistOps.isBlocked(senderId)) return;
   if (message.trim().length < 2) return;
 
-  const { reply, source, attachments } = await getReply(message, { isComment: true });
+  const [{ reply, source, attachments }, senderName] = await Promise.all([
+    getReply(message, { isComment: true }),
+    getSenderName(senderId),
+  ]);
   // 留言只能回文字，附件連結附在文字末尾
   const replyText = appendAttachmentLinks(reply, attachments);
   await replyToComment(commentId, replyText);
   markReplied(commentId);
-  await logOps.add({ platform: "facebook", type: "comment", sender_id: senderId, message, reply: replyText, reply_source: source });
-  console.log(`[Bot] ✅ FB 留言 ${commentId} (${source})`);
+  await logOps.add({ platform: "facebook", type: "comment", sender_id: senderId, sender_name: senderName, message, reply: replyText, reply_source: source });
+  console.log(`[Bot] ✅ FB 留言 ${commentId} (${source}) from ${senderName || senderId}`);
 }
 
 export async function handleMessengerMessage(event: { senderId: string; messageId: string; message: string }) {
@@ -99,14 +103,17 @@ export async function handleMessengerMessage(event: { senderId: string; messageI
   if (!(await isBotEnabled("messenger"))) return;
   if (await blocklistOps.isBlocked(senderId)) return;
 
-  const { reply, source, attachments } = await getReply(message, { isComment: false });
+  const [{ reply, source, attachments }, senderName] = await Promise.all([
+    getReply(message, { isComment: false }),
+    getSenderName(senderId),
+  ]);
   await sendMessengerMessage(senderId, reply);
   for (const att of attachments) {
     await sendMessengerAttachment(senderId, att);
   }
   markReplied(messageId);
-  await logOps.add({ platform: "facebook", type: "messenger", sender_id: senderId, message, reply, reply_source: source });
-  console.log(`[Bot] ✅ Messenger ${messageId} (${source})`);
+  await logOps.add({ platform: "facebook", type: "messenger", sender_id: senderId, sender_name: senderName, message, reply, reply_source: source });
+  console.log(`[Bot] ✅ Messenger ${messageId} (${source}) from ${senderName || senderId}`);
 }
 
 export async function handleIGComment(event: { commentId: string; message: string; senderId: string }) {
@@ -116,12 +123,15 @@ export async function handleIGComment(event: { commentId: string; message: strin
   if (await blocklistOps.isBlocked(senderId)) return;
   if (message.trim().length < 2) return;
 
-  const { reply, source, attachments } = await getReply(message, { isComment: true });
+  const [{ reply, source, attachments }, senderName] = await Promise.all([
+    getReply(message, { isComment: true }),
+    getSenderName(senderId),
+  ]);
   const replyText = appendAttachmentLinks(reply, attachments);
   await replyToIGComment(commentId, replyText);
   markReplied(commentId);
-  await logOps.add({ platform: "instagram", type: "comment", sender_id: senderId, message, reply: replyText, reply_source: source });
-  console.log(`[Bot] ✅ IG 留言 ${commentId} (${source})`);
+  await logOps.add({ platform: "instagram", type: "comment", sender_id: senderId, sender_name: senderName, message, reply: replyText, reply_source: source });
+  console.log(`[Bot] ✅ IG 留言 ${commentId} (${source}) from ${senderName || senderId}`);
 }
 
 export async function handleIGDirectMessage(event: { senderId: string; messageId: string; message: string }) {
@@ -130,12 +140,15 @@ export async function handleIGDirectMessage(event: { senderId: string; messageId
   if (!(await isBotEnabled("ig_dm"))) return;
   if (await blocklistOps.isBlocked(senderId)) return;
 
-  const { reply, source, attachments } = await getReply(message, { isComment: false });
+  const [{ reply, source, attachments }, senderName] = await Promise.all([
+    getReply(message, { isComment: false }),
+    getSenderName(senderId),
+  ]);
   await sendIGMessage(senderId, reply);
   for (const att of attachments) {
     await sendIGAttachment(senderId, att);
   }
   markReplied(messageId);
-  await logOps.add({ platform: "instagram", type: "dm", sender_id: senderId, message, reply, reply_source: source });
-  console.log(`[Bot] ✅ IG DM ${messageId} (${source})`);
+  await logOps.add({ platform: "instagram", type: "dm", sender_id: senderId, sender_name: senderName, message, reply, reply_source: source });
+  console.log(`[Bot] ✅ IG DM ${messageId} (${source}) from ${senderName || senderId}`);
 }

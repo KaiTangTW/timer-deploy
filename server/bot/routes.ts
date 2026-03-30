@@ -162,6 +162,31 @@ botRouter.delete("/api/bot/faq/:id", isBotAdmin, async (req: Request, res: Respo
   res.json({ success: true });
 });
 
+// FAQ 批量匯入（種子資料）
+botRouter.post("/api/bot/faq/import-seed", isBotAdmin, async (_req: Request, res: Response) => {
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const seedPath = path.join(import.meta.dirname || __dirname, "faq-seed.json");
+    const raw = fs.readFileSync(seedPath, "utf-8");
+    const items = JSON.parse(raw) as Array<{ keywords: string; answer: string; category?: string; priority?: number }>;
+    let imported = 0;
+    for (const item of items) {
+      await faqOps.add({
+        keywords: item.keywords,
+        answer: item.answer,
+        category: item.category || "",
+        priority: item.priority ?? 5,
+      });
+      imported++;
+    }
+    res.json({ success: true, imported });
+  } catch (error: any) {
+    console.error("[FAQ Import] 錯誤:", error);
+    res.status(500).json({ success: false, error: error.message || "匯入失敗" });
+  }
+});
+
 // 測試回覆
 botRouter.post("/api/bot/test-reply", isBotAdmin, async (req: Request, res: Response) => {
   const { message, isComment } = req.body;
@@ -189,6 +214,12 @@ botRouter.get("/api/bot/logs", isBotAdmin, async (req: Request, res: Response) =
   const limit = parseInt(req.query.limit as string) || 50;
   const offset = parseInt(req.query.offset as string) || 0;
   res.json({ success: true, data: await logOps.getRecent(limit, offset), total: await logOps.getCount() });
+});
+
+// 對話紀錄（依 senderId 查詢）
+botRouter.get("/api/bot/conversation/:senderId", isBotAdmin, async (req: Request, res: Response) => {
+  const logs = await logOps.getBySender(req.params.senderId);
+  res.json({ success: true, data: logs.reverse() });
 });
 
 botRouter.get("/api/bot/stats", isBotAdmin, async (_req: Request, res: Response) => {
@@ -384,6 +415,15 @@ tr:hover td { background: #334155; }
 .test-area input { flex: 1; }
 .test-result { background: #0f172a; border-radius: 8px; padding: 16px; min-height: 60px; }
 
+/* 對話氣泡 */
+.convo-msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.convo-in { background: #334155; color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 4px; }
+.convo-out { background: #1d4ed8; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+.convo-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+.convo-meta.right { text-align: right; }
+.sender-link { color: #60a5fa; cursor: pointer; text-decoration: underline; font-size: 13px; }
+.sender-link:hover { color: #93c5fd; }
+
 .page { display: none; }
 .page.active { display: block; }
 
@@ -469,6 +509,7 @@ tr:hover td { background: #334155; }
       <div class="section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <h2 style="margin-bottom:0;">FAQ 管理</h2>
+          <button class="btn btn-ghost" onclick="importSeedFaq()" style="margin-right:8px;">匯入 113 題 AI 種子 FAQ</button>
           <button class="btn btn-primary" onclick="showFaqModal()">+ 新增 FAQ</button>
         </div>
         <div class="faq-search">
@@ -510,7 +551,7 @@ tr:hover td { background: #334155; }
       <div class="info-box"><strong>訊息日誌</strong>：所有收到的訊息與機器人回覆的完整紀錄。可查看每則訊息來自哪個平台、回覆來源是 FAQ 還是 AI。</div>
       <div class="section">
         <h2>訊息日誌</h2>
-        <table><thead><tr><th>時間</th><th>平台</th><th>類型</th><th>收到訊息</th><th>回覆</th><th>來源</th></tr></thead><tbody id="logs-table"></tbody></table>
+        <table><thead><tr><th>時間</th><th>平台</th><th>類型</th><th>發送者</th><th>收到訊息</th><th>回覆</th><th>來源</th></tr></thead><tbody id="logs-table"></tbody></table>
         <div style="text-align:center;margin-top:16px;"><button class="btn btn-primary btn-sm" id="load-more-logs" onclick="loadMoreLogs()">載入更多</button></div>
       </div>
     </div>
@@ -580,6 +621,17 @@ tr:hover td { background: #334155; }
       <button class="btn btn-ghost" onclick="closeBlockModal()">取消</button>
       <button class="btn btn-danger" onclick="saveBlock()">封鎖</button>
     </div>
+  </div>
+</div>
+
+<!-- Conversation Modal -->
+<div class="modal-overlay" id="convo-modal">
+  <div class="modal" style="max-width:700px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 id="convo-title" style="margin-bottom:0;">對話紀錄</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeConvoModal()">關閉</button>
+    </div>
+    <div id="convo-body" style="max-height:60vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px;"></div>
   </div>
 </div>
 
@@ -706,6 +758,15 @@ function renderFaqs() {
         +attHtml
       +'</div>';
     }).join('');
+}
+
+// ===== Import Seed FAQ =====
+async function importSeedFaq() {
+  if(!confirm('確定要匯入 113 題 AI 生成的 FAQ 種子資料？\\n（已有的 FAQ 不會被覆蓋）')) return;
+  toast('匯入中...');
+  const res = await fetch(API+'/faq/import-seed',{method:'POST'}).then(r=>r.json());
+  if(res.success) { toast('成功匯入 '+res.imported+' 筆 FAQ！'); loadFaqs(); }
+  else toast('匯入失敗：'+(res.error||''));
 }
 
 // ===== Tag Input =====
@@ -847,20 +908,53 @@ async function saveTestAsFaq(){
 async function loadLogs(append) {
   if(!append) logOffset=0;
   const res=await fetch(API+'/logs?limit=30&offset='+logOffset).then(r=>r.json());
-  const html=res.data.map(l=>'<tr>'
+  const html=res.data.map(l=>{
+    const name=l.senderName||l.senderId||'-';
+    const sid=esc(l.senderId||'');
+    return '<tr>'
     +'<td style="white-space:nowrap;font-size:12px;color:#64748b;">'+(l.createdAt||'')+'</td>'
     +'<td><span class="badge '+(l.platform==='facebook'?'badge-fb':'badge-ig')+'">'+(l.platform==='facebook'?'FB':'IG')+'</span></td>'
     +'<td style="font-size:13px;">'+esc(l.type)+'</td>'
-    +'<td style="max-width:250px;font-size:13px;">'+esc((l.message||'').substring(0,80))+'</td>'
-    +'<td style="max-width:250px;font-size:13px;color:#94a3b8;">'+esc((l.reply||'').substring(0,80))+'</td>'
+    +'<td>'+(sid?'<span class="sender-link" onclick="openConvo(\\''+sid+'\\',\\''+esc(name)+'\\')">'+esc(name)+'</span>':'<span style="color:#64748b;">-</span>')+'</td>'
+    +'<td style="max-width:220px;font-size:13px;">'+esc((l.message||'').substring(0,80))+'</td>'
+    +'<td style="max-width:220px;font-size:13px;color:#94a3b8;">'+esc((l.reply||'').substring(0,80))+'</td>'
     +'<td><span class="badge '+(l.replySource==='faq'?'badge-faq':l.replySource==='ai'?'badge-ai':'badge-default')+'">'+(l.replySource||'-')+'</span></td>'
-    +'</tr>').join('');
+    +'</tr>';
+  }).join('');
   const tbody=document.getElementById('logs-table');
   if(append) tbody.innerHTML+=html; else tbody.innerHTML=html;
   logOffset+=res.data.length;
   document.getElementById('load-more-logs').style.display=res.data.length<30?'none':'';
 }
 function loadMoreLogs(){loadLogs(true);}
+
+// ===== Conversation =====
+async function openConvo(senderId, name) {
+  document.getElementById('convo-title').textContent=(name||senderId)+' 的對話紀錄';
+  document.getElementById('convo-body').innerHTML='<div style="text-align:center;color:#64748b;">載入中...</div>';
+  document.getElementById('convo-modal').classList.add('show');
+  const res=await fetch(API+'/conversation/'+encodeURIComponent(senderId)).then(r=>r.json());
+  if(!res.success||!res.data.length){
+    document.getElementById('convo-body').innerHTML='<div style="text-align:center;color:#64748b;">沒有對話紀錄</div>';
+    return;
+  }
+  document.getElementById('convo-body').innerHTML=res.data.map(m=>{
+    const time=m.createdAt?new Date(m.createdAt).toLocaleString('zh-TW'):'';
+    const srcBadge=m.replySource?'<span class="badge '+(m.replySource==='faq'?'badge-faq':m.replySource==='ai'?'badge-ai':'badge-default')+'">'+m.replySource+'</span> ':'';
+    return '<div>'
+      +'<div class="convo-msg convo-in">'+esc(m.message||'')+'</div>'
+      +'<div class="convo-meta">'+esc(name||m.senderId||'')+' &middot; '+time+'</div>'
+      +'</div>'
+      +(m.reply?'<div>'
+        +'<div class="convo-msg convo-out">'+esc(m.reply)+'</div>'
+        +'<div class="convo-meta right">'+srcBadge+'機器人回覆</div>'
+      +'</div>':'');
+  }).join('');
+  // 捲到底部
+  const body=document.getElementById('convo-body');
+  body.scrollTop=body.scrollHeight;
+}
+function closeConvoModal(){document.getElementById('convo-modal').classList.remove('show');}
 
 // ===== Blocklist =====
 async function loadBlocklist() {

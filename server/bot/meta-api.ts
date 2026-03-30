@@ -27,6 +27,32 @@ async function callApi(endpoint: string, body: Record<string, any>) {
   }
 }
 
+// 快取 sender name，避免重複呼叫 API
+const nameCache = new Map<string, string>();
+
+/** 取得用戶名稱（from Meta Graph API） */
+export async function getSenderName(userId: string): Promise<string> {
+  if (!userId || !getToken()) return "";
+  const cached = nameCache.get(userId);
+  if (cached !== undefined) return cached;
+  try {
+    const url = `https://graph.facebook.com/${API_VERSION}/${userId}?fields=name&access_token=${getToken()}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const name = data.name || "";
+    nameCache.set(userId, name);
+    // 快取上限 5000
+    if (nameCache.size > 5000) {
+      const first = nameCache.keys().next().value;
+      if (first) nameCache.delete(first);
+    }
+    return name;
+  } catch {
+    nameCache.set(userId, "");
+    return "";
+  }
+}
+
 /** 回覆 FB 貼文留言 */
 export async function replyToComment(commentId: string, message: string) {
   return callApi(`${commentId}/comments`, { message });

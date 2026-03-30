@@ -5,6 +5,9 @@
 import { db } from "../db";
 import { botFaqs, botSettings, botMessageLogs, botBlocklist } from "@shared/schema";
 import { eq, desc, sql, count } from "drizzle-orm";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 // ========== 初始化預設資料 ==========
 
@@ -28,19 +31,26 @@ export async function initBotData() {
     }
   }
 
-  // 預設 FAQ
-  const defaultFaqs = [
-    { id: "faq_price", keywords: "價格,多少錢,費用,收費,報價,價位", answer: "感謝您的詢問！關於價格方面，因為每個案子的需求不同，麻煩您私訊我們，我們會盡快為您提供詳細報價 😊", category: "價格", priority: 10 },
-    { id: "faq_contact", keywords: "聯絡,電話,信箱,email,怎麼聯繫,聯繫方式", answer: "您可以透過以下方式聯繫我們：\n📩 私訊本粉專\n📧 Email: service@kaitang.tw\n我們會盡快回覆您！", category: "聯絡", priority: 5 },
-    { id: "faq_service", keywords: "服務,項目,做什麼,業務,提供什麼", answer: "我們提供品牌策略、整合行銷、社群經營、活動企劃等服務。想了解更多細節，歡迎私訊我們聊聊您的需求！", category: "服務", priority: 5 },
-    { id: "faq_collab", keywords: "合作,業配,邀約,代言,聯名", answer: "感謝您的合作邀約！請將合作提案寄到我們的信箱，或直接私訊說明合作內容，我們會儘速回覆 🙏", category: "合作", priority: 5 },
-    { id: "faq_thanks", keywords: "謝謝,感謝,感恩,thx,thanks", answer: "不客氣！有任何問題隨時都可以問我們 😊", category: "回應", priority: 1 },
-  ];
-
-  for (const faq of defaultFaqs) {
-    const existing = await db.select().from(botFaqs).where(eq(botFaqs.id, faq.id));
-    if (existing.length === 0) {
-      await db.insert(botFaqs).values(faq);
+  // 自動匯入 FAQ 種子資料（113 題，只在 FAQ 表為空時匯入）
+  const faqCount = await db.select({ count: count() }).from(botFaqs);
+  if ((faqCount[0]?.count ?? 0) === 0) {
+    try {
+      const dir = typeof import.meta.dirname === "string" ? import.meta.dirname : dirname(fileURLToPath(import.meta.url));
+      const seedPath = join(dir, "faq-seed.json");
+      const seedData = JSON.parse(readFileSync(seedPath, "utf-8")) as Array<{ keywords: string; answer: string; category?: string; priority?: number }>;
+      for (const item of seedData) {
+        const id = `faq_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        await db.insert(botFaqs).values({
+          id,
+          keywords: item.keywords,
+          answer: item.answer,
+          category: item.category || "",
+          priority: item.priority ?? 5,
+        });
+      }
+      console.log(`[Bot] 已自動匯入 ${seedData.length} 筆 FAQ 種子資料`);
+    } catch (err) {
+      console.error("[Bot] FAQ 種子匯入失敗:", err);
     }
   }
 
@@ -48,16 +58,16 @@ export async function initBotData() {
   const logCount = await db.select({ count: count() }).from(botMessageLogs);
   if ((logCount[0]?.count ?? 0) === 0) {
     const demoLogs = [
-      { platform: "facebook", type: "comment", senderId: "fb_user_10001", message: "請問你們的服務怎麼收費？", reply: "感謝您的詢問！關於價格方面，因為每個案子的需求不同，麻煩您私訊我們，我們會盡快為您提供詳細報價 😊", replySource: "faq" },
-      { platform: "facebook", type: "messenger", senderId: "fb_user_10002", message: "你好，想詢問合作事宜", reply: "感謝您的合作邀約！請將合作提案寄到我們的信箱，或直接私訊說明合作內容，我們會儘速回覆 🙏", replySource: "faq" },
-      { platform: "instagram", type: "dm", senderId: "ig_user_20001", message: "哈囉～想問一下你們有接品牌活動嗎？", reply: "嗨你好！我們有接品牌活動企劃喔～可以先跟我們聊聊你的需求和預算，我們再幫你規劃最適合的方案！歡迎直接私訊詳談 💪", replySource: "ai" },
-      { platform: "instagram", type: "comment", senderId: "ig_user_20002", message: "太厲害了！", reply: "謝謝你的支持！我們會繼續努力的 💪😊", replySource: "ai" },
-      { platform: "facebook", type: "comment", senderId: "fb_user_10003", message: "謝謝分享！", reply: "不客氣！有任何問題隨時都可以問我們 😊", replySource: "faq" },
-      { platform: "facebook", type: "messenger", senderId: "fb_user_10004", message: "你們的email是什麼", reply: "您可以透過以下方式聯繫我們：\n📩 私訊本粉專\n📧 Email: service@kaitang.tw\n我們會盡快回覆您！", replySource: "faq" },
-      { platform: "instagram", type: "dm", senderId: "ig_user_20003", message: "請問可以幫忙做社群代操嗎", reply: "當然可以！我們有提供社群經營代操的服務，包含內容企劃、素材設計和數據分析。方便的話先告訴我們你的品牌和目前的社群狀況，我們可以先幫你評估 📊", replySource: "ai" },
-      { platform: "facebook", type: "comment", senderId: "fb_user_10005", message: "多少錢", reply: "感謝您的詢問！關於價格方面，因為每個案子的需求不同，麻煩您私訊我們，我們會盡快為您提供詳細報價 😊", replySource: "faq" },
-      { platform: "instagram", type: "comment", senderId: "ig_user_20004", message: "想了解更多服務內容", reply: "我們提供品牌策略、整合行銷、社群經營、活動企劃等服務。想了解更多細節，歡迎私訊我們聊聊您的需求！", replySource: "faq" },
-      { platform: "facebook", type: "messenger", senderId: "fb_user_spam_001", message: "免費賺錢機會！點擊連結 https://spam.example.com", reply: "感謝您的訊息！我們的團隊會盡快回覆您 😊", replySource: "default" },
+      { platform: "facebook", type: "comment", senderId: "fb_user_10001", senderName: "王小明", message: "請問你們的服務怎麼收費？", reply: "感謝您的詢問！關於價格方面，因為每個案子的需求不同，麻煩您私訊我們，我們會盡快為您提供詳細報價 😊", replySource: "faq" },
+      { platform: "facebook", type: "messenger", senderId: "fb_user_10002", senderName: "李美玲", message: "你好，想詢問合作事宜", reply: "感謝您的合作邀約！請將合作提案寄到我們的信箱，或直接私訊說明合作內容，我們會儘速回覆 🙏", replySource: "faq" },
+      { platform: "instagram", type: "dm", senderId: "ig_user_20001", senderName: "陳大華", message: "哈囉～想問一下你們有接品牌活動嗎？", reply: "嗨你好！我們有接品牌活動企劃喔～可以先跟我們聊聊你的需求和預算，我們再幫你規劃最適合的方案！歡迎直接私訊詳談 💪", replySource: "ai" },
+      { platform: "instagram", type: "comment", senderId: "ig_user_20002", senderName: "張雅婷", message: "太厲害了！", reply: "謝謝你的支持！我們會繼續努力的 💪😊", replySource: "ai" },
+      { platform: "facebook", type: "comment", senderId: "fb_user_10003", senderName: "林志偉", message: "謝謝分享！", reply: "不客氣！有任何問題隨時都可以問我們 😊", replySource: "faq" },
+      { platform: "facebook", type: "messenger", senderId: "fb_user_10004", senderName: "李美玲", message: "你們的email是什麼", reply: "您可以透過以下方式聯繫我們：\n📩 私訊本粉專\n📧 Email: service@kaitang.tw\n我們會盡快回覆您！", replySource: "faq" },
+      { platform: "instagram", type: "dm", senderId: "ig_user_20003", senderName: "陳大華", message: "請問可以幫忙做社群代操嗎", reply: "當然可以！我們有提供社群經營代操的服務，包含內容企劃、素材設計和數據分析。方便的話先告訴我們你的品牌和目前的社群狀況，我們可以先幫你評估 📊", replySource: "ai" },
+      { platform: "facebook", type: "comment", senderId: "fb_user_10005", senderName: "黃建國", message: "多少錢", reply: "感謝您的詢問！關於價格方面，因為每個案子的需求不同，麻煩您私訊我們，我們會盡快為您提供詳細報價 😊", replySource: "faq" },
+      { platform: "instagram", type: "comment", senderId: "ig_user_20004", senderName: "周怡君", message: "想了解更多服務內容", reply: "我們提供品牌策略、整合行銷、社群經營、活動企劃等服務。想了解更多細節，歡迎私訊我們聊聊您的需求！", replySource: "faq" },
+      { platform: "facebook", type: "messenger", senderId: "fb_user_spam_001", senderName: "Spam Bot", message: "免費賺錢機會！點擊連結 https://spam.example.com", reply: "感謝您的訊息！我們的團隊會盡快回覆您 😊", replySource: "default" },
     ];
     for (const log of demoLogs) {
       await db.insert(botMessageLogs).values(log);
@@ -153,11 +163,12 @@ export const settingsOps = {
 // ========== 訊息日誌 ==========
 
 export const logOps = {
-  async add(data: { platform: string; type: string; sender_id?: string; message?: string; reply?: string; reply_source?: string }) {
+  async add(data: { platform: string; type: string; sender_id?: string; sender_name?: string; message?: string; reply?: string; reply_source?: string }) {
     await db.insert(botMessageLogs).values({
       platform: data.platform,
       type: data.type,
       senderId: data.sender_id || "",
+      senderName: data.sender_name || "",
       message: data.message || "",
       reply: data.reply || "",
       replySource: data.reply_source || "",
@@ -171,6 +182,10 @@ export const logOps = {
   async getCount(): Promise<number> {
     const rows = await db.select({ count: count() }).from(botMessageLogs);
     return rows[0]?.count ?? 0;
+  },
+
+  async getBySender(senderId: string, limit = 50) {
+    return db.select().from(botMessageLogs).where(eq(botMessageLogs.senderId, senderId)).orderBy(desc(botMessageLogs.id)).limit(limit);
   },
 
   async getStats() {
